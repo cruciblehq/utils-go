@@ -1,0 +1,23 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+
+# Coverage
+coverage.out
+coverage.txt
+*.coverprofile
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
