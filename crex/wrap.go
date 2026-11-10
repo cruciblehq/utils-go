@@ -198,7 +198,7 @@ func rootCause(err error) string {
 	if w.message == "" {
 		return w.sentinel.Error()
 	}
-	return w.sentinel.Error() + ": " + w.message
+	return fmt.Sprintf("%s: %s", w.sentinel.Error(), w.message)
 }
 
 // Gathers the full structural position of an error chain.

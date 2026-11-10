@@ -1,6 +1,7 @@
 package crex
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -107,9 +108,9 @@ func formatValue(v slog.Value) string {
 	case slog.KindGroup:
 		var parts []string
 		for _, attr := range v.Group() {
-			parts = append(parts, attr.Key+"="+formatValue(attr.Value))
+			parts = append(parts, fmt.Sprintf("%s=%s", attr.Key, formatValue(attr.Value)))
 		}
-		return "{" + strings.Join(parts, " ") + "}"
+		return fmt.Sprintf("{%s}", strings.Join(parts, " "))
 	default:
 		return v.String()
 	}

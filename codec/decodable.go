@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -57,13 +58,24 @@ func (c *Codec) Decode(src map[string]any, dst any) error {
 //
 // The data is first parsed into a map, then applied to v via [Codec.Decode].
 // If v (or any nested field) implements [Decodable], its Decode method is
-// called with the raw parsed map at that point in the tree.
+// called with the raw parsed map at that point in the tree. JSON carries
+// []byte values as base64 strings, so JSON input decodes them back to bytes.
 func (c *Codec) Unmarshal(data []byte, v any, f Format) error {
 	m, err := decodeMap(data, f)
 	if err != nil {
 		return err
 	}
-	return c.Decode(m, v)
+	return c.forFormat(f).Decode(m, v)
+}
+
+// Returns a copy of c configured for values parsed from format f.
+//
+// The copy is also what [Decodable] implementations receive, so nested
+// decoding follows the same rules.
+func (c *Codec) forFormat(f Format) *Codec {
+	copied := *c
+	copied.base64Bytes = f == JSON
+	return &copied
 }
 
 // Decodes a single struct field from a map.
@@ -120,9 +132,20 @@ func (c *Codec) Field(src map[string]any, v any, fieldName string) error {
 
 // Returns a decode hook that delegates to [Decodable.Decode] for any target
 // type that implements [Decodable].
+//
+// When the codec decodes base64 bytes, a string bound for a []byte target is
+// base64 decoded first.
 func (c *Codec) decoderHook() mapstructure.DecodeHookFuncType {
 	iface := reflect.TypeFor[Decodable]()
+	bytesType := reflect.TypeFor[[]byte]()
 	return func(from, to reflect.Type, data any) (any, error) {
+		if s, ok := data.(string); ok && c.base64Bytes && to == bytesType {
+			b, err := base64.StdEncoding.DecodeString(s)
+			if err != nil {
+				return nil, crex.Wrap(ErrInvalidBase64, err)
+			}
+			return b, nil
+		}
 		ptr := reflect.PointerTo(to)
 		if !ptr.Implements(iface) {
 			return data, nil

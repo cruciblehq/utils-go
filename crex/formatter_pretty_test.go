@@ -2,6 +2,7 @@ package crex
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -344,7 +345,7 @@ func TestPrettyFormatter_LogLevels(t *testing.T) {
 			}
 
 			got := buf.String()
-			levelStr := "[" + strings.ToLower(level.String()) + "]"
+			levelStr := fmt.Sprintf("[%s]", strings.ToLower(level.String()))
 			if !strings.Contains(got, levelStr) {
 				t.Errorf("output missing level string %q: %q", levelStr, got)
 			}

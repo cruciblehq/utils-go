@@ -9,4 +9,5 @@ var (
 	ErrMissingField      = crex.New("field not found on struct")
 	ErrSetDefault        = crex.New("failed to set default value")
 	ErrUnsupportedType   = crex.New("unsupported field type")
+	ErrInvalidBase64     = crex.New("invalid base64 data")
 )

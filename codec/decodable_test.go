@@ -185,3 +185,78 @@ func TestField_Decodable(t *testing.T) {
 		t.Errorf("Field Decodable = %q, want %q", w.C.Value, "hooked")
 	}
 }
+
+type payload struct {
+	Data []byte `codec:"data"`
+}
+
+type payloadHolder struct {
+	Inner payload
+}
+
+func (p *payloadHolder) Decode(c *Codec, raw any) error {
+	return c.Decode(raw.(map[string]any), &p.Inner)
+}
+
+func TestUnmarshal_JSONBytes(t *testing.T) {
+	want := []byte{0xff, 0x00, 'h', '\n'}
+	data, err := Encode(payload{Data: want}, JSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got payload
+	if err := Unmarshal(data, &got, JSON); err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Data) != string(want) {
+		t.Errorf("Unmarshal(JSON) data = %q, want %q", got.Data, want)
+	}
+}
+
+func TestUnmarshal_JSONBytesInvalidBase64(t *testing.T) {
+	var got payload
+	err := Unmarshal([]byte(`{"data":"not base64!"}`), &got, JSON)
+	if !errors.Is(err, ErrInvalidBase64) {
+		t.Errorf("Unmarshal(JSON) error = %v, want ErrInvalidBase64", err)
+	}
+}
+
+func TestUnmarshal_JSONBytesInDecodable(t *testing.T) {
+	want := []byte("nested")
+	data, err := Encode(payload{Data: want}, JSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got payloadHolder
+	if err := Unmarshal(data, &got, JSON); err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Inner.Data) != string(want) {
+		t.Errorf("Unmarshal(JSON) nested data = %q, want %q", got.Inner.Data, want)
+	}
+}
+
+func TestUnmarshal_YAMLBytes(t *testing.T) {
+	want := []byte{0xff, 0x00, 'h'}
+	data, err := Encode(payload{Data: want}, YAML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got payload
+	if err := Unmarshal(data, &got, YAML); err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Data) != string(want) {
+		t.Errorf("Unmarshal(YAML) data = %q, want %q", got.Data, want)
+	}
+}
+
+func TestDecode_StringIntoBytesUnchanged(t *testing.T) {
+	var got payload
+	if err := Decode(map[string]any{"data": "raw"}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Data) != "raw" {
+		t.Errorf("Decode data = %q, want %q", got.Data, "raw")
+	}
+}

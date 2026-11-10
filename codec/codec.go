@@ -5,7 +5,8 @@ package codec
 // The tag selects which struct fields map to serialized keys. [Default] uses
 // the "codec" tag; [New] binds a different one.
 type Codec struct {
-	tag string // Struct tag used to map fields.
+	tag         string // Struct tag used to map fields.
+	base64Bytes bool   // Whether strings decode into []byte fields as base64.
 }
 
 // Returns a Codec bound to the default "codec" struct tag.
