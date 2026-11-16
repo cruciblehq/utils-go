@@ -1,10 +1,7 @@
 package file
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -100,26 +97,4 @@ func WriteFile(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	return a.Commit(path)
-}
-
-// Streams r to path atomically and returns its SHA-256 digest and size.
-//
-// The digest is hex encoded with a "sha256:" prefix. The temporary file is
-// created next to path. See [AtomicFile].
-func WriteAtomic(r io.Reader, path string, mode os.FileMode) (string, int64, error) {
-	a, err := CreateAtomic(filepath.Dir(path), mode)
-	if err != nil {
-		return "", 0, err
-	}
-	defer a.Abort()
-
-	h := sha256.New()
-	size, err := io.Copy(io.MultiWriter(a, h), r)
-	if err != nil {
-		return "", 0, err
-	}
-	if err := a.Commit(path); err != nil {
-		return "", 0, err
-	}
-	return fmt.Sprintf("sha256:%s", hex.EncodeToString(h.Sum(nil))), size, nil
 }

@@ -1,9 +1,6 @@
 package file
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -139,51 +136,4 @@ func TestWriteFileMissingDir(t *testing.T) {
 	if err := WriteFile(filepath.Join(t.TempDir(), "missing", "out"), []byte("x"), 0o600); err == nil {
 		t.Error("WriteFile() into a missing directory = nil, want an error")
 	}
-}
-
-func TestWriteAtomic(t *testing.T) {
-	dir := t.TempDir()
-	dest := filepath.Join(dir, "out.bin")
-	content := "hello world"
-
-	digest, size, err := WriteAtomic(strings.NewReader(content), dest, DefaultFileMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if size != int64(len(content)) {
-		t.Errorf("size = %d, want %d", size, len(content))
-	}
-	h := sha256.Sum256([]byte(content))
-	want := fmt.Sprintf("sha256:%s", hex.EncodeToString(h[:]))
-	if digest != want {
-		t.Errorf("digest = %s, want %s", digest, want)
-	}
-	data, err := os.ReadFile(dest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != content {
-		t.Errorf("content = %q, want %q", data, content)
-	}
-	assertMode(t, dest, DefaultFileMode)
-	assertNoTemp(t, dir)
-}
-
-func TestWriteAtomicReadError(t *testing.T) {
-	dir := t.TempDir()
-	dest := filepath.Join(dir, "out.bin")
-
-	if _, _, err := WriteAtomic(errReader{}, dest, DefaultFileMode); err == nil {
-		t.Fatal("WriteAtomic() with a failing reader = nil, want an error")
-	}
-	if _, err := os.Stat(dest); !os.IsNotExist(err) {
-		t.Errorf("destination exists after a failed write, stat = %v", err)
-	}
-	assertNoTemp(t, dir)
-}
-
-type errReader struct{}
-
-func (errReader) Read([]byte) (int, error) {
-	return 0, os.ErrClosed
 }
