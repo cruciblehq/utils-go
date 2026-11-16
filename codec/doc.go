@@ -6,26 +6,25 @@
 // for the final byte format.
 //
 // [Encode] serializes a Go value to bytes. If the value implements [Encodable],
-// its Encode method produces the intermediate representation; otherwise [ToMap]
-// converts the struct to a map using struct tags. The result is then marshaled
-// to the requested format.
+// its Encode method produces the intermediate representation; otherwise
+// [Codec.ToMap] converts the struct to a map using struct tags. The result is
+// then written in the requested format.
 //
 //	data, err := codec.Encode(v, codec.YAML)
 //
-// [Unmarshal] parses bytes (JSON or YAML) into a map, then delegates to
-// [Decode] to populate a Go struct. [Decode] walks the type tree, applying
-// weak type coercion (e.g. string-to-int) and tag-declared defaults for
-// absent fields.
+// [Decode] parses bytes (JSON or YAML) into a map, then populates a Go struct
+// with [Codec.FromMap], which walks the type tree, applying weak type coercion
+// (e.g. string-to-int) and tag-declared defaults for absent fields.
 //
-//	err := codec.Unmarshal(data, &v, codec.YAML)
+//	err := codec.Decode(data, &v, codec.YAML)
 //
-// Types that need custom decoding logic implement [Decodable]. When [Decode]
-// encounters such a type at any depth, it calls Decode with the active codec
-// and the raw value instead of mapping fields automatically. The raw value is
-// typically a map[string]any but may be a string or other scalar. Use the
-// passed codec's [Codec.Field] to decode individual fields one at a time,
-// retaining coercion and defaults, and [Codec.Decode] on nested structs of
-// different types.
+// Types that need custom logic implement [Encodable] or [Decodable]. When
+// decoding meets a [Decodable] type at any depth, it calls Decode with the
+// active codec and the raw value instead of mapping fields automatically. The
+// raw value is typically a map[string]any but may be a string or other scalar.
+// Use the passed codec's [Codec.Field] to decode individual fields one at a
+// time, retaining coercion and defaults, and [Codec.FromMap] on nested structs
+// of different types. Encode hooks use [Codec.ToMap] the same way.
 //
 //	func (m *MyType) Decode(c *codec.Codec, raw any) error {
 //	    src := raw.(map[string]any)
@@ -42,7 +41,7 @@
 // Defaults are applied only when the field's key is absent from the source
 // map. Explicitly provided values, including zero, are never overwritten.
 //
-// [Validate] calls the [Validatable.Validate] method on a value. Validation
-// is always a separate step from decoding, allowing partial or invalid data
-// to be decoded first and validated later.
+// Types implementing [Validatable] check their own invariants. Validation is
+// always a separate step from decoding, allowing partial or invalid data to be
+// decoded first and validated later.
 package codec

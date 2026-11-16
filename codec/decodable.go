@@ -3,7 +3,6 @@ package codec
 import (
 	"encoding/base64"
 	"encoding/json"
-	"io"
 	"reflect"
 	"strings"
 
@@ -14,7 +13,7 @@ import (
 
 // Implemented by types that need custom decoding logic.
 //
-// When [Codec.Decode] encounters a target type that implements this interface
+// When [Codec.FromMap] encounters a target type that implements this interface
 // (at any depth in the struct tree), it delegates to Decode with the raw
 // value instead of using the default field-by-field mapping. The raw value
 // is typically a map[string]any but may be a string or other scalar when
@@ -24,10 +23,10 @@ type Decodable interface {
 	// Decodes a raw value into the receiver.
 	//
 	// The given Codec carries the active tag namespace and should be used for
-	// any nested [Codec.Field] or [Codec.Decode] calls. The raw value is the
+	// any nested [Codec.Field] or [Codec.FromMap] calls. The raw value is the
 	// parsed representation from the source format, typically a map[string]any
 	// but possibly a string or other scalar. Returning an error aborts the
-	// outer [Codec.Unmarshal] or [Codec.Decode] call.
+	// outer [Codec.Decode] or [Codec.FromMap] call.
 	Decode(c *Codec, raw any) error
 }
 
@@ -38,7 +37,7 @@ type Decodable interface {
 // receive that default when absent from the input. At each node in
 // the type tree, if the target implements [Decodable], its Decode method
 // is called with the raw map.
-func (c *Codec) Decode(src map[string]any, dst any) error {
+func (c *Codec) FromMap(src map[string]any, dst any) error {
 	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName:          c.tag,
 		Result:           dst,
@@ -57,28 +56,16 @@ func (c *Codec) Decode(src map[string]any, dst any) error {
 
 // Populates v from data in the given format.
 //
-// The data is first parsed into a map, then applied to v via [Codec.Decode].
+// The data is first parsed into a map, then applied to v via [Codec.FromMap].
 // If v (or any nested field) implements [Decodable], its Decode method is
 // called with the raw parsed map at that point in the tree. JSON carries
 // []byte values as base64 strings, so JSON input decodes them back to bytes.
-func (c *Codec) Unmarshal(data []byte, v any, f Format) error {
+func (c *Codec) Decode(data []byte, v any, f Format) error {
 	m, err := decodeMap(data, f)
 	if err != nil {
 		return err
 	}
-	return c.forFormat(f).Decode(m, v)
-}
-
-// Reads r to the end and populates v from it in the given format.
-//
-// Behaves like [Codec.Unmarshal] on everything read from r. Returns the read
-// error when r fails.
-func (c *Codec) Read(r io.Reader, v any, f Format) error {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	return c.Unmarshal(data, v, f)
+	return c.forFormat(f).FromMap(m, v)
 }
 
 // Returns a copy of c configured for values parsed from format f.

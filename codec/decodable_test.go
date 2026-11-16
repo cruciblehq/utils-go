@@ -2,64 +2,62 @@ package codec
 
 import (
 	"errors"
-	"strings"
 	"testing"
-	"testing/iotest"
 )
 
 func TestUnmarshal_JSON(t *testing.T) {
 	var s sample
-	err := Unmarshal([]byte(`{"name":"bar","version":2}`), &s, JSON)
+	err := Decode([]byte(`{"name":"bar","version":2}`), &s, JSON)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s.Name != "bar" || s.Version != 2 {
-		t.Errorf("Unmarshal(JSON) = %+v", s)
+		t.Errorf("Decode(JSON) = %+v", s)
 	}
 }
 
 func TestUnmarshal_YAML(t *testing.T) {
 	var s sample
-	err := Unmarshal([]byte("name: baz\nversion: 3\n"), &s, YAML)
+	err := Decode([]byte("name: baz\nversion: 3\n"), &s, YAML)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if s.Name != "baz" || s.Version != 3 {
-		t.Errorf("Unmarshal(YAML) = %+v", s)
+		t.Errorf("Decode(YAML) = %+v", s)
 	}
 }
 
 func TestUnmarshal_UnsupportedFormat(t *testing.T) {
 	var s sample
-	err := Unmarshal([]byte("{}"), &s, Format(99))
+	err := Decode([]byte("{}"), &s, Format(99))
 	if !errors.Is(err, ErrUnsupportedFormat) {
-		t.Errorf("Unmarshal(Format(99)) error = %v, want ErrUnsupportedFormat", err)
+		t.Errorf("Decode(Format(99)) error = %v, want ErrUnsupportedFormat", err)
 	}
 }
 
 func TestUnmarshal_InvalidData(t *testing.T) {
 	var s sample
-	err := Unmarshal([]byte("not json"), &s, JSON)
+	err := Decode([]byte("not json"), &s, JSON)
 	if err == nil {
-		t.Error("Unmarshal(invalid JSON) should fail")
+		t.Error("Decode(invalid JSON) should fail")
 	}
 }
 
 func TestUnmarshal_CustomDecodable(t *testing.T) {
 	c := &custom{}
-	err := Unmarshal([]byte(`{"custom":"raw-input"}`), c, JSON)
+	err := Decode([]byte(`{"custom":"raw-input"}`), c, JSON)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c.Value != "raw-input" {
-		t.Errorf("Unmarshal(custom) = %q", c.Value)
+		t.Errorf("Decode(custom) = %q", c.Value)
 	}
 }
 
 func TestDecode(t *testing.T) {
 	m := map[string]any{"name": "y", "version": 10}
 	var s sample
-	if err := Decode(m, &s); err != nil {
+	if err := Default().FromMap(m, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.Name != "y" || s.Version != 10 {
@@ -70,7 +68,7 @@ func TestDecode(t *testing.T) {
 func TestDecode_WeaklyTyped(t *testing.T) {
 	m := map[string]any{"name": "w", "version": "8"}
 	var s sample
-	if err := Decode(m, &s); err != nil {
+	if err := Default().FromMap(m, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.Version != 8 {
@@ -81,7 +79,7 @@ func TestDecode_WeaklyTyped(t *testing.T) {
 func TestDecode_Squash(t *testing.T) {
 	m := map[string]any{"name": "sq", "version": 7, "extra": "e"}
 	var s squashed
-	if err := Decode(m, &s); err != nil {
+	if err := Default().FromMap(m, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.Name != "sq" {
@@ -98,10 +96,10 @@ func TestDecode_Squash(t *testing.T) {
 func TestField(t *testing.T) {
 	src := map[string]any{"name": "alice", "version": 7}
 	var s sample
-	if err := Field(src, &s, "Name"); err != nil {
+	if err := Default().Field(src, &s, "Name"); err != nil {
 		t.Fatal(err)
 	}
-	if err := Field(src, &s, "Version"); err != nil {
+	if err := Default().Field(src, &s, "Version"); err != nil {
 		t.Fatal(err)
 	}
 	if s.Name != "alice" {
@@ -115,7 +113,7 @@ func TestField(t *testing.T) {
 func TestField_WeaklyTyped(t *testing.T) {
 	src := map[string]any{"version": "42"}
 	var s sample
-	if err := Field(src, &s, "Version"); err != nil {
+	if err := Default().Field(src, &s, "Version"); err != nil {
 		t.Fatal(err)
 	}
 	if s.Version != 42 {
@@ -126,7 +124,7 @@ func TestField_WeaklyTyped(t *testing.T) {
 func TestField_Default(t *testing.T) {
 	src := map[string]any{}
 	var s withDefaults
-	if err := Field(src, &s, "Weight"); err != nil {
+	if err := Default().Field(src, &s, "Weight"); err != nil {
 		t.Fatal(err)
 	}
 	if s.Weight != 100 {
@@ -137,7 +135,7 @@ func TestField_Default(t *testing.T) {
 func TestField_Nested(t *testing.T) {
 	src := map[string]any{"inner": map[string]any{"name": "n", "version": 3}}
 	var s nested
-	if err := Field(src, &s, "Inner"); err != nil {
+	if err := Default().Field(src, &s, "Inner"); err != nil {
 		t.Fatal(err)
 	}
 	if s.Inner.Name != "n" || s.Inner.Version != 3 {
@@ -148,7 +146,7 @@ func TestField_Nested(t *testing.T) {
 func TestField_Absent(t *testing.T) {
 	src := map[string]any{}
 	var s sample
-	if err := Field(src, &s, "Name"); err != nil {
+	if err := Default().Field(src, &s, "Name"); err != nil {
 		t.Fatal(err)
 	}
 	if s.Name != "" {
@@ -159,18 +157,18 @@ func TestField_Absent(t *testing.T) {
 func TestField_NotPointer(t *testing.T) {
 	src := map[string]any{"name": "x"}
 	var s sample
-	err := Field(src, s, "Name")
+	err := Default().Field(src, s, "Name")
 	if err == nil {
-		t.Fatal("Field(non-pointer) should fail")
+		t.Fatal("Default().Field(non-pointer) should fail")
 	}
 }
 
 func TestField_BadFieldName(t *testing.T) {
 	src := map[string]any{}
 	var s sample
-	err := Field(src, &s, "DoesNotExist")
+	err := Default().Field(src, &s, "DoesNotExist")
 	if err == nil {
-		t.Fatal("Field(bad name) should fail")
+		t.Fatal("Default().Field(bad name) should fail")
 	}
 }
 
@@ -180,7 +178,7 @@ func TestField_Decodable(t *testing.T) {
 	}
 	src := map[string]any{"c": map[string]any{"custom": "hooked"}}
 	var w wrapper
-	if err := Field(src, &w, "C"); err != nil {
+	if err := Default().Field(src, &w, "C"); err != nil {
 		t.Fatal(err)
 	}
 	if w.C.Value != "hooked" {
@@ -197,7 +195,7 @@ type payloadHolder struct {
 }
 
 func (p *payloadHolder) Decode(c *Codec, raw any) error {
-	return c.Decode(raw.(map[string]any), &p.Inner)
+	return c.FromMap(raw.(map[string]any), &p.Inner)
 }
 
 func TestUnmarshal_JSONBytes(t *testing.T) {
@@ -207,19 +205,19 @@ func TestUnmarshal_JSONBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got payload
-	if err := Unmarshal(data, &got, JSON); err != nil {
+	if err := Decode(data, &got, JSON); err != nil {
 		t.Fatal(err)
 	}
 	if string(got.Data) != string(want) {
-		t.Errorf("Unmarshal(JSON) data = %q, want %q", got.Data, want)
+		t.Errorf("Decode(JSON) data = %q, want %q", got.Data, want)
 	}
 }
 
 func TestUnmarshal_JSONBytesInvalidBase64(t *testing.T) {
 	var got payload
-	err := Unmarshal([]byte(`{"data":"not base64!"}`), &got, JSON)
+	err := Decode([]byte(`{"data":"not base64!"}`), &got, JSON)
 	if !errors.Is(err, ErrInvalidBase64) {
-		t.Errorf("Unmarshal(JSON) error = %v, want ErrInvalidBase64", err)
+		t.Errorf("Decode(JSON) error = %v, want ErrInvalidBase64", err)
 	}
 }
 
@@ -230,11 +228,11 @@ func TestUnmarshal_JSONBytesInDecodable(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got payloadHolder
-	if err := Unmarshal(data, &got, JSON); err != nil {
+	if err := Decode(data, &got, JSON); err != nil {
 		t.Fatal(err)
 	}
 	if string(got.Inner.Data) != string(want) {
-		t.Errorf("Unmarshal(JSON) nested data = %q, want %q", got.Inner.Data, want)
+		t.Errorf("Decode(JSON) nested data = %q, want %q", got.Inner.Data, want)
 	}
 }
 
@@ -245,38 +243,20 @@ func TestUnmarshal_YAMLBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got payload
-	if err := Unmarshal(data, &got, YAML); err != nil {
+	if err := Decode(data, &got, YAML); err != nil {
 		t.Fatal(err)
 	}
 	if string(got.Data) != string(want) {
-		t.Errorf("Unmarshal(YAML) data = %q, want %q", got.Data, want)
+		t.Errorf("Decode(YAML) data = %q, want %q", got.Data, want)
 	}
 }
 
 func TestDecode_StringIntoBytesUnchanged(t *testing.T) {
 	var got payload
-	if err := Decode(map[string]any{"data": "raw"}, &got); err != nil {
+	if err := Default().FromMap(map[string]any{"data": "raw"}, &got); err != nil {
 		t.Fatal(err)
 	}
 	if string(got.Data) != "raw" {
 		t.Errorf("Decode data = %q, want %q", got.Data, "raw")
-	}
-}
-
-func TestRead(t *testing.T) {
-	var s sample
-	if err := Read(strings.NewReader("name: baz\nversion: 3\n"), &s, YAML); err != nil {
-		t.Fatalf("Read() = %v, want nil", err)
-	}
-	if s.Name != "baz" || s.Version != 3 {
-		t.Errorf("Read(YAML) = %+v", s)
-	}
-}
-
-func TestRead_ReaderError(t *testing.T) {
-	var s sample
-	readErr := iotest.ErrTimeout
-	if err := Read(iotest.ErrReader(readErr), &s, JSON); !errors.Is(err, readErr) {
-		t.Fatalf("Read() = %v, want %v", err, readErr)
 	}
 }

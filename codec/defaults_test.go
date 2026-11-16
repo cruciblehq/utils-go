@@ -24,7 +24,7 @@ type allDefaults struct {
 func TestDecode_Defaults(t *testing.T) {
 	m := map[string]any{"name": "x"}
 	var s withDefaults
-	if err := Decode(m, &s); err != nil {
+	if err := Default().FromMap(m, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.Name != "x" {
@@ -41,7 +41,7 @@ func TestDecode_Defaults(t *testing.T) {
 func TestDecode_DefaultsOverridden(t *testing.T) {
 	m := map[string]any{"name": "x", "weight": 50, "mode": "manual"}
 	var s withDefaults
-	if err := Decode(m, &s); err != nil {
+	if err := Default().FromMap(m, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.Weight != 50 {
@@ -55,7 +55,7 @@ func TestDecode_DefaultsOverridden(t *testing.T) {
 func TestDecode_DefaultsNested(t *testing.T) {
 	m := map[string]any{"inner": map[string]any{"name": "n"}}
 	var s nestedDefaults
-	if err := Decode(m, &s); err != nil {
+	if err := Default().FromMap(m, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.Inner.Weight != 100 {
@@ -69,7 +69,7 @@ func TestDecode_DefaultsNested(t *testing.T) {
 func TestDecode_DefaultsExplicitZero(t *testing.T) {
 	m := map[string]any{"name": "x", "weight": 0, "mode": ""}
 	var s withDefaults
-	if err := Decode(m, &s); err != nil {
+	if err := Default().FromMap(m, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.Weight != 0 {
@@ -82,7 +82,7 @@ func TestDecode_DefaultsExplicitZero(t *testing.T) {
 
 func TestDecode_DefaultBool(t *testing.T) {
 	var s allDefaults
-	if err := Decode(map[string]any{}, &s); err != nil {
+	if err := Default().FromMap(map[string]any{}, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.B != true {
@@ -92,7 +92,7 @@ func TestDecode_DefaultBool(t *testing.T) {
 
 func TestDecode_DefaultInt(t *testing.T) {
 	var s allDefaults
-	if err := Decode(map[string]any{}, &s); err != nil {
+	if err := Default().FromMap(map[string]any{}, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.I != -42 {
@@ -102,7 +102,7 @@ func TestDecode_DefaultInt(t *testing.T) {
 
 func TestDecode_DefaultFloat(t *testing.T) {
 	var s allDefaults
-	if err := Decode(map[string]any{}, &s); err != nil {
+	if err := Default().FromMap(map[string]any{}, &s); err != nil {
 		t.Fatal(err)
 	}
 	if s.F != 3.14 {
@@ -115,7 +115,7 @@ func TestDecode_DefaultUnsupportedType(t *testing.T) {
 		Sl []int `codec:"sl" default:"nope"`
 	}
 	var s unsupported
-	err := Decode(map[string]any{}, &s)
+	err := Default().FromMap(map[string]any{}, &s)
 	if err == nil {
 		t.Fatal("expected error for unsupported default type")
 	}

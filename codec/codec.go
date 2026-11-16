@@ -1,7 +1,5 @@
 package codec
 
-import "io"
-
 // Encodes and decodes values using a named struct tag.
 //
 // The tag selects which struct fields map to serialized keys. [Default] uses
@@ -32,27 +30,6 @@ func Encode(v any, f Format) ([]byte, error) {
 }
 
 // Populates v from data in the given format using the default codec tag.
-func Unmarshal(data []byte, v any, f Format) error {
-	return Default().Unmarshal(data, v, f)
-}
-
-// Reads r to the end and populates v from it in the given format using the
-// default codec tag.
-func Read(r io.Reader, v any, f Format) error {
-	return Default().Read(r, v, f)
-}
-
-// Populates dst from a map using the default codec tag.
-func Decode(src map[string]any, dst any) error {
-	return Default().Decode(src, dst)
-}
-
-// Converts a struct to a map using the default codec tag.
-func ToMap(v any) (map[string]any, error) {
-	return Default().ToMap(v)
-}
-
-// Decodes a single struct field from a map using the default codec tag.
-func Field(src map[string]any, v any, fieldName string) error {
-	return Default().Field(src, v, fieldName)
+func Decode(data []byte, v any, f Format) error {
+	return Default().Decode(data, v, f)
 }

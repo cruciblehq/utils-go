@@ -50,7 +50,7 @@ func TestEncode_CustomEncodable(t *testing.T) {
 
 func TestToMap(t *testing.T) {
 	s := sample{Name: "x", Version: 5}
-	m, err := ToMap(s)
+	m, err := Default().ToMap(s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestToMap(t *testing.T) {
 
 func TestToMap_Nested(t *testing.T) {
 	n := nested{Inner: sample{Name: "n", Version: 1}}
-	m, err := ToMap(n)
+	m, err := Default().ToMap(n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestToMap_Nested(t *testing.T) {
 
 func TestToMap_Squash(t *testing.T) {
 	s := squashed{sample: sample{Name: "sq", Version: 7}, Extra: "e"}
-	m, err := ToMap(s)
+	m, err := Default().ToMap(s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestRoundtrip_JSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got sample
-	if err := Unmarshal(data, &got, JSON); err != nil {
+	if err := Decode(data, &got, JSON); err != nil {
 		t.Fatal(err)
 	}
 	if got != orig {
@@ -110,7 +110,7 @@ func TestRoundtrip_YAML(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got sample
-	if err := Unmarshal(data, &got, YAML); err != nil {
+	if err := Decode(data, &got, YAML); err != nil {
 		t.Fatal(err)
 	}
 	if got != orig {
