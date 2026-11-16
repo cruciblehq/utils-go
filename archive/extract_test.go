@@ -8,153 +8,228 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/klauspost/compress/zstd"
 )
 
-func TestExtractFromReader(t *testing.T) {
+func TestExtract(t *testing.T) {
 	srcDir := t.TempDir()
 	createTestFiles(t, srcDir)
+	parent := filepath.Join(t.TempDir(), "deep")
+	destDir := filepath.Join(parent, "extracted")
 
-	archivePath := filepath.Join(t.TempDir(), "test.tar.zst")
-	if err := Create(srcDir, archivePath); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	data, err := os.ReadFile(archivePath)
-	if err != nil {
-		t.Fatalf("ReadFile failed: %v", err)
-	}
-
-	destDir := filepath.Join(t.TempDir(), "extracted")
-	if err := ExtractFromReader(bytes.NewReader(data), destDir, Zstd); err != nil {
-		t.Fatalf("ExtractFromReader failed: %v", err)
+	if err := Extract(writeArchive(t, srcDir, Zstd), destDir, Zstd); err != nil {
+		t.Fatalf("Extract() = %v, want nil", err)
 	}
 
 	assertFileContent(t, filepath.Join(destDir, "file.txt"), "hello")
 	assertFileContent(t, filepath.Join(destDir, "subdir", "nested.txt"), "nested")
-	assertDirExists(t, filepath.Join(destDir, "emptydir"))
-}
-
-func TestExtractFromReaderIntoExistingDirectory(t *testing.T) {
-	srcDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("hello"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	archivePath := filepath.Join(t.TempDir(), "test.tar.zst")
-	if err := Create(srcDir, archivePath); err != nil {
-		t.Fatal(err)
-	}
-
-	data, err := os.ReadFile(archivePath)
+	entries, err := os.ReadDir(parent)
 	if err != nil {
-		t.Fatalf("ReadFile failed: %v", err)
+		t.Fatal(err)
 	}
-
-	destDir := t.TempDir()
-	if err := ExtractFromReader(bytes.NewReader(data), destDir, Zstd); err != nil {
-		t.Fatalf("ExtractFromReader into existing dir failed: %v", err)
+	if len(entries) != 1 {
+		t.Errorf("parent has %d entries, want 1", len(entries))
 	}
-
-	assertFileContent(t, filepath.Join(destDir, "file.txt"), "hello")
+	info, err := os.Stat(destDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0755 {
+		t.Errorf("dest mode = %o, want %o", info.Mode().Perm(), 0755)
+	}
 }
 
-func TestExtractFromReaderInvalidData(t *testing.T) {
-	destDir := filepath.Join(t.TempDir(), "extracted")
+func TestExtractInvalidData(t *testing.T) {
+	parent := t.TempDir()
+	destDir := filepath.Join(parent, "extracted")
 
-	err := ExtractFromReader(bytes.NewReader([]byte("not a valid archive")), destDir, Zstd)
-	if err == nil {
-		t.Fatal("expected error for invalid data")
+	if err := Extract(bytes.NewReader([]byte("not a valid archive")), destDir, Zstd); !errors.Is(err, ErrExtractFailed) {
+		t.Fatalf("Extract() = %v, want %v", err, ErrExtractFailed)
 	}
-
-	if _, statErr := os.Stat(destDir); statErr == nil {
-		t.Fatal("destination should not exist after failed extraction")
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("parent has %d entries after a failed extraction, want 0", len(entries))
 	}
 }
 
 func TestExtractDestinationExists(t *testing.T) {
 	srcDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("hello"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	archivePath := filepath.Join(t.TempDir(), "test.tar.zst")
-	if err := Create(srcDir, archivePath); err != nil {
-		t.Fatal(err)
-	}
-
+	createTestFiles(t, srcDir)
 	destDir := t.TempDir()
-	err := Extract(archivePath, destDir)
 
-	if err == nil {
-		t.Fatal("expected error for existing destination")
+	err := Extract(writeArchive(t, srcDir, Zstd), destDir, Zstd)
+	if !errors.Is(err, os.ErrExist) {
+		t.Fatalf("Extract() = %v, want %v", err, os.ErrExist)
+	}
+}
+
+func TestExtractMaliciousEntryLeavesNothing(t *testing.T) {
+	data := tarBytes(t,
+		entry{&tar.Header{Name: "good.txt", Mode: 0644, Typeflag: tar.TypeReg}, "hello"},
+		entry{&tar.Header{Name: "evil", Typeflag: tar.TypeSymlink, Linkname: "/etc/passwd"}, ""},
+	)
+	destDir := filepath.Join(t.TempDir(), "extracted")
+
+	if err := Extract(bytes.NewReader(data), destDir, Tar); err == nil {
+		t.Fatal("Extract() = nil, want error")
+	}
+	if _, err := os.Stat(destDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stat dest = %v, want %v", err, os.ErrNotExist)
+	}
+}
+
+func TestExtractInto(t *testing.T) {
+	srcDir := t.TempDir()
+	createTestFiles(t, srcDir)
+	destDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(destDir, "keep.txt"), []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
 	}
 
-	if !errors.Is(err, os.ErrExist) {
-		t.Fatalf("expected os.ErrExist, got: %v", err)
+	if err := ExtractInto(writeArchive(t, srcDir, Gzip), destDir, Gzip); err != nil {
+		t.Fatalf("ExtractInto() = %v, want nil", err)
+	}
+
+	assertFileContent(t, filepath.Join(destDir, "keep.txt"), "keep")
+	assertFileContent(t, filepath.Join(destDir, "file.txt"), "hello")
+}
+
+func TestExtractIntoCreatesDirectory(t *testing.T) {
+	srcDir := t.TempDir()
+	createTestFiles(t, srcDir)
+	destDir := filepath.Join(t.TempDir(), "new")
+
+	if err := ExtractInto(writeArchive(t, srcDir, Tar), destDir, Tar); err != nil {
+		t.Fatalf("ExtractInto() = %v, want nil", err)
+	}
+
+	assertFileContent(t, filepath.Join(destDir, "file.txt"), "hello")
+}
+
+func TestExtractIntoKeepsDirectoryOnFailure(t *testing.T) {
+	destDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(destDir, "keep.txt"), []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ExtractInto(bytes.NewReader([]byte("not a valid archive")), destDir, Zstd); !errors.Is(err, ErrExtractFailed) {
+		t.Fatalf("ExtractInto() = %v, want %v", err, ErrExtractFailed)
+	}
+	assertFileContent(t, filepath.Join(destDir, "keep.txt"), "keep")
+}
+
+func TestExtractIntoReplacesFile(t *testing.T) {
+	destDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(destDir, "file.txt"), []byte("old content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	data := tarBytes(t, entry{&tar.Header{Name: "file.txt", Mode: 0644, Typeflag: tar.TypeReg}, "new"})
+
+	if err := ExtractInto(bytes.NewReader(data), destDir, Tar); err != nil {
+		t.Fatalf("ExtractInto() = %v, want nil", err)
+	}
+	assertFileContent(t, filepath.Join(destDir, "file.txt"), "new")
+}
+
+func TestExtractIntoDoesNotWriteThroughSymlink(t *testing.T) {
+	parent := t.TempDir()
+	outside := filepath.Join(parent, "outside.txt")
+	if err := os.WriteFile(outside, []byte("original"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	destDir := filepath.Join(parent, "dest")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(destDir, "file.txt")); err != nil {
+		t.Fatal(err)
+	}
+	data := tarBytes(t, entry{&tar.Header{Name: "file.txt", Mode: 0644, Typeflag: tar.TypeReg}, "pwned"})
+
+	if err := ExtractInto(bytes.NewReader(data), destDir, Tar); err != nil {
+		t.Fatalf("ExtractInto() = %v, want nil", err)
+	}
+	assertFileContent(t, outside, "original")
+	assertFileContent(t, filepath.Join(destDir, "file.txt"), "pwned")
+	info, err := os.Lstat(filepath.Join(destDir, "file.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Error("file.txt is still a symlink")
+	}
+}
+
+func TestExtractIntoSymlinkChain(t *testing.T) {
+	parent := t.TempDir()
+	outside := filepath.Join(parent, "outside")
+	if err := os.MkdirAll(outside, 0755); err != nil {
+		t.Fatal(err)
+	}
+	destDir := filepath.Join(parent, "dest")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../outside", filepath.Join(destDir, "evil")); err != nil {
+		t.Fatal(err)
+	}
+	data := tarBytes(t, entry{&tar.Header{Name: "evil/file.txt", Mode: 0644, Typeflag: tar.TypeReg}, "pwned"})
+
+	err := ExtractInto(bytes.NewReader(data), destDir, Tar)
+	if !errors.Is(err, ErrInvalidPath) {
+		t.Fatalf("ExtractInto() = %v, want %v", err, ErrInvalidPath)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "file.txt")); err == nil {
+		t.Fatal("file was written outside destination")
 	}
 }
 
 func TestExtractPathTraversal(t *testing.T) {
-	// Manually craft a malicious archive with path traversal
-	destDir := filepath.Join(t.TempDir(), "extracted")
-	maliciousArchive := createMaliciousZstdArchive(t, "../etc/passwd")
+	data := tarBytes(t, entry{&tar.Header{Name: "../etc/passwd", Mode: 0644, Typeflag: tar.TypeReg}, "pwned"})
 
-	err := ExtractFromReader(maliciousArchive, destDir, Zstd)
-	if err == nil {
-		t.Fatal("expected error for path traversal attempt")
-	}
-
+	err := Extract(zstdBytes(t, data), filepath.Join(t.TempDir(), "extracted"), Zstd)
 	if !errors.Is(err, ErrInvalidPath) {
-		t.Fatalf("expected ErrInvalidPath, got: %v", err)
+		t.Fatalf("Extract() = %v, want %v", err, ErrInvalidPath)
 	}
 }
 
 func TestExtractAbsolutePath(t *testing.T) {
-	// Manually craft an archive with absolute path
-	destDir := filepath.Join(t.TempDir(), "extracted")
-	maliciousArchive := createMaliciousZstdArchive(t, "/etc/passwd")
+	data := tarBytes(t, entry{&tar.Header{Name: "/etc/passwd", Mode: 0644, Typeflag: tar.TypeReg}, "pwned"})
 
-	err := ExtractFromReader(maliciousArchive, destDir, Zstd)
-	if err == nil {
-		t.Fatal("expected error for absolute path")
-	}
-
+	err := Extract(zstdBytes(t, data), filepath.Join(t.TempDir(), "extracted"), Zstd)
 	if !errors.Is(err, ErrInvalidPath) {
-		t.Fatalf("expected ErrInvalidPath, got: %v", err)
+		t.Fatalf("Extract() = %v, want %v", err, ErrInvalidPath)
 	}
 }
 
-func TestExtractCleansUpOnFailure(t *testing.T) {
-	archivePath := filepath.Join(t.TempDir(), "nonexistent.tar.zst")
-	destDir := filepath.Join(t.TempDir(), "extracted")
-
-	err := Extract(archivePath, destDir)
-	if err == nil {
-		t.Fatal("expected error for nonexistent archive")
+func TestExtractGzipPathTraversal(t *testing.T) {
+	data := tarBytes(t, entry{&tar.Header{Name: "../etc/passwd", Mode: 0644, Typeflag: tar.TypeReg}, "pwned"})
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	if _, err := gw.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatal(err)
 	}
 
-	if _, statErr := os.Stat(destDir); statErr == nil {
-		t.Fatal("destination should not exist after failed extraction")
+	err := Extract(&buf, filepath.Join(t.TempDir(), "extracted"), Gzip)
+	if !errors.Is(err, ErrInvalidPath) {
+		t.Fatalf("Extract() = %v, want %v", err, ErrInvalidPath)
 	}
 }
 
 func TestExtractFilePermissions(t *testing.T) {
 	srcDir := t.TempDir()
 	createTestFiles(t, srcDir)
-
-	archivePath := filepath.Join(t.TempDir(), "test.tar.zst")
-	if err := Create(srcDir, archivePath); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
 	destDir := filepath.Join(t.TempDir(), "extracted")
-	if err := Extract(archivePath, destDir); err != nil {
-		t.Fatalf("Extract failed: %v", err)
+
+	if err := Extract(writeArchive(t, srcDir, Zstd), destDir, Zstd); err != nil {
+		t.Fatalf("Extract() = %v, want nil", err)
 	}
 
-	// Check file permissions (should match source: 0644)
 	info, err := os.Stat(filepath.Join(destDir, "file.txt"))
 	if err != nil {
 		t.Fatal(err)
@@ -162,8 +237,6 @@ func TestExtractFilePermissions(t *testing.T) {
 	if info.Mode().Perm() != 0644 {
 		t.Errorf("file mode = %o, want %o", info.Mode().Perm(), 0644)
 	}
-
-	// Check directory permissions
 	info, err = os.Stat(filepath.Join(destDir, "subdir"))
 	if err != nil {
 		t.Fatal(err)
@@ -173,423 +246,95 @@ func TestExtractFilePermissions(t *testing.T) {
 	}
 }
 
-func TestExtractCleansUpOnMaliciousEntry(t *testing.T) {
-	// Archive with a valid file followed by a symlink entry
-	srcDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(srcDir, "good.txt"), []byte("hello"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	archivePath := filepath.Join(t.TempDir(), "malicious.tar.zst")
-
-	// Build the archive manually to include a symlink
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
-
-	tw.WriteHeader(&tar.Header{
-		Name:     "good.txt",
-		Size:     5,
-		Mode:     0644,
-		Typeflag: tar.TypeReg,
-	})
-	tw.Write([]byte("hello"))
-
-	tw.WriteHeader(&tar.Header{
-		Name:     "evil",
-		Typeflag: tar.TypeSymlink,
-		Linkname: "/etc/passwd",
-	})
-
-	tw.Close()
-	zw.Close()
-
-	if err := os.WriteFile(archivePath, buf.Bytes(), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	destDir := filepath.Join(t.TempDir(), "extracted")
-	err := Extract(archivePath, destDir)
-	if err == nil {
-		t.Fatal("expected error for symlink entry")
-	}
-
-	// Destination should be cleaned up by Extract
-	if _, statErr := os.Stat(destDir); statErr == nil {
-		t.Fatal("destination should not exist after failed extraction")
-	}
-}
-
 func TestExtractPreservesFileMode(t *testing.T) {
-	// Create an archive with files of different modes
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
-
-	script := []byte("#!/bin/sh\necho hello")
-	tw.WriteHeader(&tar.Header{
-		Name:     "script.sh",
-		Size:     int64(len(script)),
-		Mode:     0755,
-		Typeflag: tar.TypeReg,
-	})
-	tw.Write(script)
-
-	data := []byte("plain data")
-	tw.WriteHeader(&tar.Header{
-		Name:     "data.txt",
-		Size:     int64(len(data)),
-		Mode:     0644,
-		Typeflag: tar.TypeReg,
-	})
-	tw.Write(data)
-
-	tw.Close()
-	zw.Close()
-
+	data := tarBytes(t,
+		entry{&tar.Header{Name: "script.sh", Mode: 0755, Typeflag: tar.TypeReg}, "#!/bin/sh\necho hello"},
+		entry{&tar.Header{Name: "data.txt", Mode: 0644, Typeflag: tar.TypeReg}, "plain data"},
+	)
 	dest := filepath.Join(t.TempDir(), "preserved")
-	if err := ExtractFromReader(bytes.NewReader(buf.Bytes()), dest, Zstd); err != nil {
-		t.Fatalf("ExtractFromReader: %v", err)
+
+	if err := Extract(bytes.NewReader(data), dest, Tar); err != nil {
+		t.Fatalf("Extract() = %v, want nil", err)
 	}
 
-	info, _ := os.Stat(filepath.Join(dest, "script.sh"))
-	if info.Mode().Perm() != 0755 {
-		t.Errorf("script.sh mode = %o, want 0755", info.Mode().Perm())
-	}
-
-	info, _ = os.Stat(filepath.Join(dest, "data.txt"))
-	if info.Mode().Perm() != 0644 {
-		t.Errorf("data.txt mode = %o, want 0644", info.Mode().Perm())
-	}
-}
-
-func TestExtractFromReaderGzip(t *testing.T) {
-	srcDir := t.TempDir()
-	createTestFiles(t, srcDir)
-
-	archivePath := filepath.Join(t.TempDir(), "test.tar.gz")
-	if err := Create(srcDir, archivePath); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	data, err := os.ReadFile(archivePath)
+	info, err := os.Stat(filepath.Join(dest, "script.sh"))
 	if err != nil {
-		t.Fatalf("ReadFile failed: %v", err)
+		t.Fatal(err)
 	}
-
-	destDir := filepath.Join(t.TempDir(), "extracted")
-	if err := ExtractFromReader(bytes.NewReader(data), destDir, Gzip); err != nil {
-		t.Fatalf("ExtractFromReader failed: %v", err)
+	if info.Mode().Perm() != 0755 {
+		t.Errorf("script.sh mode = %o, want %o", info.Mode().Perm(), 0755)
 	}
-
-	assertFileContent(t, filepath.Join(destDir, "file.txt"), "hello")
+	info, err = os.Stat(filepath.Join(dest, "data.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0644 {
+		t.Errorf("data.txt mode = %o, want %o", info.Mode().Perm(), 0644)
+	}
 }
 
 func TestExtractUnsupportedFormat(t *testing.T) {
-	archivePath := filepath.Join(t.TempDir(), "test.zip")
-	if err := os.WriteFile(archivePath, []byte("fake"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	destDir := filepath.Join(t.TempDir(), "extracted")
-	err := Extract(archivePath, destDir)
-	if err == nil {
-		t.Fatal("expected error for unsupported format")
-	}
+	err := Extract(bytes.NewReader(nil), filepath.Join(t.TempDir(), "extracted"), Format(99))
 	if !errors.Is(err, ErrUnsupportedFormat) {
-		t.Fatalf("expected ErrUnsupportedFormat, got: %v", err)
-	}
-}
-
-func TestExtractGzipPathTraversal(t *testing.T) {
-	destDir := filepath.Join(t.TempDir(), "extracted")
-	maliciousArchive := createMaliciousGzipArchive(t, "../etc/passwd")
-
-	err := ExtractFromReader(maliciousArchive, destDir, Gzip)
-	if err == nil {
-		t.Fatal("expected error for path traversal attempt")
-	}
-
-	if !errors.Is(err, ErrInvalidPath) {
-		t.Fatalf("expected ErrInvalidPath, got: %v", err)
+		t.Fatalf("Extract() = %v, want %v", err, ErrUnsupportedFormat)
 	}
 }
 
 func TestExtractSkipsPAXHeaders(t *testing.T) {
-	// Archive with a PAX extended header followed by a regular file.
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
-
-	// PAX extended header entry.
-	tw.WriteHeader(&tar.Header{
-		Typeflag: tar.TypeXHeader,
-		Name:     "PaxHeaders.0/file.txt",
-		Size:     0,
-	})
-
-	// PAX global header entry.
-	tw.WriteHeader(&tar.Header{
-		Typeflag: tar.TypeXGlobalHeader,
-		Name:     "GlobalHead.0",
-		Size:     0,
-	})
-
-	content := []byte("hello")
-	tw.WriteHeader(&tar.Header{
-		Name:     "file.txt",
-		Size:     int64(len(content)),
-		Mode:     0644,
-		Typeflag: tar.TypeReg,
-	})
-	tw.Write(content)
-
-	tw.Close()
-	zw.Close()
-
+	data := tarBytes(t,
+		entry{&tar.Header{Typeflag: tar.TypeXGlobalHeader, Name: "GlobalHead.0", PAXRecords: map[string]string{"comment": "global"}}, ""},
+		entry{&tar.Header{Name: "file.txt", Mode: 0644, Typeflag: tar.TypeReg, Format: tar.FormatPAX, PAXRecords: map[string]string{"comment": "local"}}, "hello"},
+	)
 	dest := filepath.Join(t.TempDir(), "extracted")
-	if err := ExtractFromReader(bytes.NewReader(buf.Bytes()), dest, Zstd); err != nil {
-		t.Fatalf("ExtractFromReader: %v", err)
-	}
 
+	if err := Extract(bytes.NewReader(data), dest, Tar); err != nil {
+		t.Fatalf("Extract() = %v, want nil", err)
+	}
 	assertFileContent(t, filepath.Join(dest, "file.txt"), "hello")
 }
 
 func TestExtractHardLink(t *testing.T) {
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
-
-	// Write the original file.
-	content := []byte("linked content")
-	tw.WriteHeader(&tar.Header{
-		Name:     "original.txt",
-		Size:     int64(len(content)),
-		Mode:     0644,
-		Typeflag: tar.TypeReg,
-	})
-	tw.Write(content)
-
-	// Write a hard link to the original.
-	tw.WriteHeader(&tar.Header{
-		Name:     "subdir/link.txt",
-		Typeflag: tar.TypeLink,
-		Linkname: "original.txt",
-	})
-
-	tw.Close()
-	zw.Close()
-
+	data := tarBytes(t,
+		entry{&tar.Header{Name: "original.txt", Mode: 0644, Typeflag: tar.TypeReg}, "linked content"},
+		entry{&tar.Header{Name: "subdir/link.txt", Typeflag: tar.TypeLink, Linkname: "original.txt"}, ""},
+	)
 	dest := filepath.Join(t.TempDir(), "extracted")
-	if err := ExtractFromReader(bytes.NewReader(buf.Bytes()), dest, Zstd); err != nil {
-		t.Fatalf("ExtractFromReader: %v", err)
-	}
 
+	if err := Extract(bytes.NewReader(data), dest, Tar); err != nil {
+		t.Fatalf("Extract() = %v, want nil", err)
+	}
 	assertFileContent(t, filepath.Join(dest, "original.txt"), "linked content")
 	assertFileContent(t, filepath.Join(dest, "subdir", "link.txt"), "linked content")
 }
 
 func TestExtractHardLinkWithDotSlashPrefix(t *testing.T) {
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
-
-	content := []byte("gnu-style content")
-	tw.WriteHeader(&tar.Header{
-		Name:     "./original.txt",
-		Size:     int64(len(content)),
-		Mode:     0644,
-		Typeflag: tar.TypeReg,
-	})
-	tw.Write(content)
-
-	// Hard link with ./ prefix on both name and linkname.
-	tw.WriteHeader(&tar.Header{
-		Name:     "./link.txt",
-		Typeflag: tar.TypeLink,
-		Linkname: "./original.txt",
-	})
-
-	tw.Close()
-	zw.Close()
-
+	data := tarBytes(t,
+		entry{&tar.Header{Name: "./original.txt", Mode: 0644, Typeflag: tar.TypeReg}, "gnu-style content"},
+		entry{&tar.Header{Name: "./link.txt", Typeflag: tar.TypeLink, Linkname: "./original.txt"}, ""},
+	)
 	dest := filepath.Join(t.TempDir(), "extracted")
-	if err := ExtractFromReader(bytes.NewReader(buf.Bytes()), dest, Zstd); err != nil {
-		t.Fatalf("ExtractFromReader: %v", err)
-	}
 
+	if err := Extract(bytes.NewReader(data), dest, Tar); err != nil {
+		t.Fatalf("Extract() = %v, want nil", err)
+	}
 	assertFileContent(t, filepath.Join(dest, "original.txt"), "gnu-style content")
 	assertFileContent(t, filepath.Join(dest, "link.txt"), "gnu-style content")
 }
 
 func TestExtractHardLinkEscape(t *testing.T) {
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
+	data := tarBytes(t, entry{&tar.Header{Name: "evil.txt", Typeflag: tar.TypeLink, Linkname: "../etc/passwd"}, ""})
 
-	// Hard link targeting a path outside the destination.
-	tw.WriteHeader(&tar.Header{
-		Name:     "evil.txt",
-		Typeflag: tar.TypeLink,
-		Linkname: "../etc/passwd",
-	})
-
-	tw.Close()
-	zw.Close()
-
-	dest := filepath.Join(t.TempDir(), "extracted")
-	err := ExtractFromReader(bytes.NewReader(buf.Bytes()), dest, Zstd)
-	if err == nil {
-		t.Fatal("expected error for hard link escape")
-	}
-
+	err := Extract(bytes.NewReader(data), filepath.Join(t.TempDir(), "extracted"), Tar)
 	if !errors.Is(err, ErrInvalidPath) {
-		t.Fatalf("expected ErrInvalidPath, got: %v", err)
+		t.Fatalf("Extract() = %v, want %v", err, ErrInvalidPath)
 	}
 }
 
 func TestExtractHardLinkAbsolutePath(t *testing.T) {
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
+	data := tarBytes(t, entry{&tar.Header{Name: "evil.txt", Typeflag: tar.TypeLink, Linkname: "/etc/passwd"}, ""})
 
-	// Hard link with an absolute linkname.
-	tw.WriteHeader(&tar.Header{
-		Name:     "evil.txt",
-		Typeflag: tar.TypeLink,
-		Linkname: "/etc/passwd",
-	})
-
-	tw.Close()
-	zw.Close()
-
-	dest := filepath.Join(t.TempDir(), "extracted")
-	err := ExtractFromReader(bytes.NewReader(buf.Bytes()), dest, Zstd)
-	if err == nil {
-		t.Fatal("expected error for hard link with absolute path")
-	}
-
+	err := Extract(bytes.NewReader(data), filepath.Join(t.TempDir(), "extracted"), Tar)
 	if !errors.Is(err, ErrInvalidPath) {
-		t.Fatalf("expected ErrInvalidPath, got: %v", err)
+		t.Fatalf("Extract() = %v, want %v", err, ErrInvalidPath)
 	}
-}
-
-func TestExtractSymlinkChainInExistingDest(t *testing.T) {
-	// Set up a pre-existing dest containing a symlink that points outside it.
-	// This exercises validatePathComponents: a file entry whose parent directory
-	// component is an existing symlink escaping the destination tree.
-	parent := t.TempDir()
-	outside := filepath.Join(parent, "outside")
-	if err := os.MkdirAll(outside, 0755); err != nil {
-		t.Fatal(err)
-	}
-
-	dest := filepath.Join(parent, "dest")
-	if err := os.MkdirAll(dest, 0755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Place an escaping symlink in dest before extraction starts.
-	if err := os.Symlink("../outside", filepath.Join(dest, "evil")); err != nil {
-		t.Fatal(err)
-	}
-
-	// Archive with a regular file whose path traverses the escaping symlink.
-	var buf bytes.Buffer
-	zw, _ := zstd.NewWriter(&buf)
-	tw := tar.NewWriter(zw)
-	content := []byte("pwned")
-	tw.WriteHeader(&tar.Header{
-		Name:     "evil/file.txt",
-		Size:     int64(len(content)),
-		Mode:     0644,
-		Typeflag: tar.TypeReg,
-	})
-	tw.Write(content)
-	tw.Close()
-	zw.Close()
-
-	err := ExtractFromReader(bytes.NewReader(buf.Bytes()), dest, Zstd)
-	if err == nil {
-		t.Fatal("expected error for symlink chain escape")
-	}
-	if !errors.Is(err, ErrInvalidPath) {
-		t.Fatalf("expected ErrInvalidPath, got: %v", err)
-	}
-
-	// The file must not have been written to the directory outside dest.
-	if _, statErr := os.Stat(filepath.Join(outside, "file.txt")); statErr == nil {
-		t.Fatal("file was written outside destination")
-	}
-}
-
-func createMaliciousZstdArchive(t *testing.T, maliciousPath string) *bytes.Reader {
-	t.Helper()
-
-	var buf bytes.Buffer
-	zw, err := zstd.NewWriter(&buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tw := tar.NewWriter(zw)
-
-	// Create a tar entry with malicious path
-	header := &tar.Header{
-		Name:     maliciousPath,
-		Mode:     0644,
-		Size:     5,
-		Typeflag: tar.TypeReg,
-	}
-
-	if err := tw.WriteHeader(header); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := tw.Write([]byte("pwned")); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := tw.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := zw.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	return bytes.NewReader(buf.Bytes())
-}
-
-func createMaliciousGzipArchive(t *testing.T, maliciousPath string) *bytes.Reader {
-	t.Helper()
-
-	var buf bytes.Buffer
-	gw := gzip.NewWriter(&buf)
-	tw := tar.NewWriter(gw)
-
-	header := &tar.Header{
-		Name:     maliciousPath,
-		Mode:     0644,
-		Size:     5,
-		Typeflag: tar.TypeReg,
-	}
-
-	if err := tw.WriteHeader(header); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := tw.Write([]byte("pwned")); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := tw.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := gw.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	return bytes.NewReader(buf.Bytes())
 }

@@ -3,83 +3,75 @@ package archive
 import (
 	"archive/tar"
 	"errors"
+	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/cruciblehq/utils-go/crex"
+	"github.com/cruciblehq/utils-go/file"
 )
 
-// Extracts a compressed tar archive to a directory.
+// Extracts the archive r in format f into the new directory dest.
 //
-// The compression format is detected from the src filename extension (see
-// [Format]). Permissions are preserved from the archive headers with special
-// bits stripped. Intermediate directories that have no archive entry are
-// created with [os.ModePerm], subject to the process umask. Returns
-// [ErrExtractFailed] wrapping [os.ErrExist] if dest already exists. Regular
-// files, directories, symlinks, and hard links are supported. Symlinks and
-// hard links are validated to ensure they do not escape the destination tree.
-// PAX extended headers are skipped transparently. Other entry types such as
-// devices and sockets return [ErrUnsupportedFileType]. Absolute paths and path
-// traversal attempts (e.g., "../etc/passwd") return [ErrInvalidPath]. If
-// extraction fails, the destination directory and its contents are removed.
-func Extract(src, dest string) (err error) {
-	fmt, err := detect(src)
-	if err != nil {
-		return crex.Wrap(ErrExtractFailed, err)
-	}
-
-	if _, statErr := os.Stat(dest); statErr == nil {
+// The archive is extracted into a temporary directory next to dest, which is
+// renamed to dest only once extraction succeeds, so dest never holds a partial
+// tree. dest must not exist; if it does, the error wraps [os.ErrExist]. Parent
+// directories are created as needed. dest gets mode [file.DefaultDirMode].
+func Extract(r io.Reader, dest string, f Format) error {
+	if _, err := os.Lstat(dest); err == nil {
 		return crex.Wrap(ErrExtractFailed, os.ErrExist)
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return crex.Wrap(ErrExtractFailed, err)
 	}
 
-	file, err := os.Open(src)
+	parent := filepath.Dir(dest)
+	if err := os.MkdirAll(parent, os.ModePerm); err != nil {
+		return crex.Wrap(ErrExtractFailed, err)
+	}
+	tmp, err := os.MkdirTemp(parent, fmt.Sprintf("%s*", file.TempPrefix))
 	if err != nil {
 		return crex.Wrap(ErrExtractFailed, err)
 	}
-	defer file.Close()
+	defer os.RemoveAll(tmp)
 
-	defer func() {
-		if err != nil {
-			os.RemoveAll(dest)
-		}
-	}()
-
-	return ExtractFromReader(file, dest, fmt)
+	if err := extract(r, tmp, f); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp, file.DefaultDirMode); err != nil {
+		return crex.Wrap(ErrExtractFailed, err)
+	}
+	if err := os.Rename(tmp, dest); err != nil {
+		return crex.Wrap(ErrExtractFailed, err)
+	}
+	return nil
 }
 
-// Extracts a compressed tar archive from a reader to a directory.
+// Extracts the archive r in format f into dir, adding to what it holds.
 //
-// Creates dest if it does not exist and extracts all entries into it. The
-// compression format must be supplied explicitly because there is no filename
-// to detect from. Permissions are preserved from the archive headers with
-// special bits stripped. Intermediate directories that have no archive entry
-// are created with [os.ModePerm], subject to the process umask. Supports the
-// same entry types as [Extract]: regular files, directories, symlinks, and
-// hard links (all validated against directory escape). PAX headers are
-// skipped. If extraction fails, dest and its contents are removed.
-func ExtractFromReader(r io.Reader, dest string, f Format) (err error) {
-	dr, err := newDecompressReader(r, f)
+// dir is created if it does not exist. Entries replace files of the same name.
+// Nothing is removed when extraction fails, so dir may then hold part of the
+// archive.
+func ExtractInto(r io.Reader, dir string, f Format) error {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return crex.Wrap(ErrExtractFailed, err)
+	}
+	return extract(r, dir, f)
+}
+
+// Decompresses r in format f and extracts its entries into the directory dest.
+func extract(r io.Reader, dest string, f Format) error {
+	dr, err := Decompress(r, f)
 	if err != nil {
 		return crex.Wrap(ErrExtractFailed, err)
 	}
 	defer dr.Close()
 
-	if err = os.MkdirAll(dest, os.ModePerm); err != nil {
+	if err := readTar(tar.NewReader(dr), dest); err != nil {
 		return crex.Wrap(ErrExtractFailed, err)
 	}
-
-	defer func() {
-		if err != nil {
-			os.RemoveAll(dest)
-		}
-	}()
-
-	if err = readTar(tar.NewReader(dr), dest); err != nil {
-		return crex.Wrap(ErrExtractFailed, err)
-	}
-
 	return nil
 }
 
@@ -158,6 +150,9 @@ func extractEntry(header *tar.Header, tr *tar.Reader, dest, target string) error
 		return os.MkdirAll(target, os.FileMode(header.Mode)&os.ModePerm)
 
 	case tar.TypeReg:
+		if err := removeExisting(target); err != nil {
+			return err
+		}
 		return extractFile(tr, target, os.FileMode(header.Mode)&os.ModePerm)
 
 	case tar.TypeSymlink:
@@ -165,6 +160,9 @@ func extractEntry(header *tar.Header, tr *tar.Reader, dest, target string) error
 			return err
 		}
 		if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+			return err
+		}
+		if err := removeExisting(target); err != nil {
 			return err
 		}
 		return os.Symlink(header.Linkname, target)
@@ -175,6 +173,9 @@ func extractEntry(header *tar.Header, tr *tar.Reader, dest, target string) error
 			return err
 		}
 		if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+			return err
+		}
+		if err := removeExisting(target); err != nil {
 			return err
 		}
 		return os.Link(linkTarget, target)
@@ -202,7 +203,7 @@ func validateSymlink(dest, target, linkname string) error {
 	}
 	resolved = filepath.Clean(resolved)
 	cleanDest := filepath.Clean(dest)
-	if resolved != cleanDest && !strings.HasPrefix(resolved, cleanDest+string(filepath.Separator)) {
+	if resolved != cleanDest && !file.IsInside(resolved, cleanDest) {
 		return ErrInvalidPath
 	}
 	return nil
@@ -255,7 +256,7 @@ func checkSymlinkEscape(current, cleanDest string) error {
 		return ErrInvalidPath
 	}
 	resolved = filepath.Clean(resolved)
-	if resolved != cleanDest && !strings.HasPrefix(resolved, cleanDest+string(filepath.Separator)) {
+	if resolved != cleanDest && !file.IsInside(resolved, cleanDest) {
 		return ErrInvalidPath
 	}
 	return nil
@@ -276,6 +277,24 @@ func validateHardlink(dest, linkname string) (string, error) {
 		return "", ErrInvalidPath
 	}
 	return target, nil
+}
+
+// Removes what is at target unless it is a directory.
+//
+// A new entry then replaces an existing file or symlink instead of writing
+// through it, so a symlink cannot redirect the write outside the destination.
+func removeExisting(target string) error {
+	info, err := os.Lstat(target)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return nil
+	}
+	return os.Remove(target)
 }
 
 // Extracts a regular file from r to target with the given mode.

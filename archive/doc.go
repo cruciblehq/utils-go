@@ -1,50 +1,43 @@
-// Package archive provides creation and extraction of compressed tar archives.
+// Package archive writes, extracts, and rewrites tar archives as streams.
 //
-// Supported formats are Zstandard (.tar.zst) and Gzip (.tar.gz, .tgz). The
-// compression format is detected automatically from the file extension by
-// [Create] and [Extract], or supplied explicitly to [ExtractFromReader]. Only
-// regular files and directories are archivable; symlinks and special files
-// (devices, sockets, named pipes) are rejected with [ErrUnsupportedFileType]
-// during creation. Extraction additionally supports symlinks and hard links,
-// both validated against directory escape. Path traversal attacks and absolute
-// paths are detected and rejected with [ErrInvalidPath].
+// Archives are tar or tar compressed with Gzip or Zstandard (see [Format]).
+// Every function reads from an [io.Reader] or writes to an [io.Writer], so
+// the caller decides where the bytes live. [FormatOf] finds the format from
+// a file name and [Detect] finds it from the leading bytes of a stream.
 //
-// Created archives preserve source file permissions with special bits (setuid,
-// setgid, sticky) stripped. Extracted entries preserve permissions from the
-// archive headers with the same masking. Intermediate directories that have no
-// archive entry are created with [os.ModePerm], subject to the process umask.
+// [Write] archives a file or directory tree. Only regular files and directories
+// are archivable. Symlinks and special files (devices, sockets, named pipes)
+// are rejected with [ErrUnsupportedFileType]. Permissions are kept with the
+// setuid, setgid, and sticky bits removed.
 //
-// Creating an archive from a directory:
+// [Extract] unpacks an archive into a new directory, which appears only once
+// extraction has fully succeeded. [ExtractInto] unpacks into a directory that
+// may already exist. Both accept regular files, directories, symlinks, and hard
+// links, and reject any entry that would land outside the destination with
+// [ErrInvalidPath].
 //
-//	err := archive.Create("mydir", "output.tar.zst")
+// [Rebase] copies a tar stream while moving its entries to another directory,
+// which is useful to place an archive at a different path before applying it.
+//
+// Writing a directory to a file:
+//
+//	f, err := os.Create("site.tar.zst")
 //	if err != nil {
-//		log.Fatal(err)
+//		return err
+//	}
+//	defer f.Close()
+//	if err := archive.Write(f, "site", "", archive.Zstd); err != nil {
+//		return err
 //	}
 //
-// Extracting an archive to a new directory:
+// Extracting a downloaded archive:
 //
-//	err := archive.Extract("output.tar.gz", "extracted")
+//	resp, err := http.Get(url)
 //	if err != nil {
-//		log.Fatal(err)
+//		return err
 //	}
-//
-// Extracting from an [io.Reader]:
-//
-//	file, _ := os.Open("output.tar.zst")
-//	defer file.Close()
-//	err := archive.ExtractFromReader(file, "extracted", archive.Zstd)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-// Reading a single file from a tar stream:
-//
-//	tr := tar.NewReader(r)
-//	data, err := archive.Find(tr, "crucible.yaml")
-//	if errors.Is(err, archive.ErrNotFound) {
-//		log.Fatal("file not found in archive")
-//	}
-//	if err != nil {
-//		log.Fatal(err)
+//	defer resp.Body.Close()
+//	if err := archive.Extract(resp.Body, "tools", archive.Gzip); err != nil {
+//		return err
 //	}
 package archive
