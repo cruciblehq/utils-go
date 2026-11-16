@@ -1,12 +1,8 @@
 package file
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -27,51 +23,6 @@ func TestPathExists(t *testing.T) {
 	}
 	if exists {
 		t.Fatal("expected non-existent path to return false")
-	}
-}
-
-func TestWriteAtomic(t *testing.T) {
-	dir := t.TempDir()
-	dest := filepath.Join(dir, "out.bin")
-	content := "hello world"
-
-	digest, size, err := WriteAtomic(strings.NewReader(content), dir, dest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if size != int64(len(content)) {
-		t.Fatalf("expected size %d, got %d", len(content), size)
-	}
-
-	h := sha256.Sum256([]byte(content))
-	want := fmt.Sprintf("sha256:%s", hex.EncodeToString(h[:]))
-	if digest != want {
-		t.Fatalf("expected digest %s, got %s", want, digest)
-	}
-
-	data, err := os.ReadFile(dest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != content {
-		t.Fatalf("expected file content %q, got %q", content, data)
-	}
-}
-
-func TestWriteAtomicNoTempLeftover(t *testing.T) {
-	dir := t.TempDir()
-	dest := filepath.Join(dir, "out.bin")
-
-	if _, _, err := WriteAtomic(strings.NewReader("x"), dir, dest); err != nil {
-		t.Fatal(err)
-	}
-
-	entries, _ := os.ReadDir(dir)
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), ".tmp-") {
-			t.Fatalf("temp file left behind: %s", e.Name())
-		}
 	}
 }
 
@@ -109,6 +60,92 @@ func TestRemoveDirIfEmptyMissing(t *testing.T) {
 	err := RemoveDirIfEmpty(filepath.Join(t.TempDir(), "gone"))
 	if err != nil {
 		t.Fatalf("expected nil for missing directory, got %v", err)
+	}
+}
+
+func TestRemoveEmptyParents(t *testing.T) {
+	root := t.TempDir()
+	deep := filepath.Join(root, "a", "b", "c")
+	if err := os.MkdirAll(deep, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RemoveEmptyParents(deep, root); err != nil {
+		t.Fatalf("RemoveEmptyParents() = %v, want nil", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a")); !os.IsNotExist(err) {
+		t.Errorf("empty parent still exists, stat = %v", err)
+	}
+	if _, err := os.Stat(root); err != nil {
+		t.Errorf("root was removed, stat = %v", err)
+	}
+}
+
+func TestRemoveEmptyParentsStopsAtNonEmpty(t *testing.T) {
+	root := t.TempDir()
+	deep := filepath.Join(root, "a", "b")
+	if err := os.MkdirAll(deep, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "a", "keep"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RemoveEmptyParents(deep, root); err != nil {
+		t.Fatalf("RemoveEmptyParents() = %v, want nil", err)
+	}
+	if _, err := os.Stat(deep); !os.IsNotExist(err) {
+		t.Errorf("empty directory still exists, stat = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a")); err != nil {
+		t.Errorf("non-empty parent was removed, stat = %v", err)
+	}
+}
+
+func TestRemoveEmptyParentsMissing(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "a"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RemoveEmptyParents(filepath.Join(root, "a", "gone"), root); err != nil {
+		t.Fatalf("RemoveEmptyParents() = %v, want nil", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a")); !os.IsNotExist(err) {
+		t.Errorf("empty parent of a missing directory still exists, stat = %v", err)
+	}
+}
+
+func TestRemoveEmptyParentsOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+
+	if err := RemoveEmptyParents(outside, root); err != nil {
+		t.Fatalf("RemoveEmptyParents() = %v, want nil", err)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Errorf("directory outside root was removed, stat = %v", err)
+	}
+}
+
+func TestIsInside(t *testing.T) {
+	root := filepath.Join("/", "data", "root")
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{filepath.Join(root, "a"), true},
+		{filepath.Join(root, "a", "b"), true},
+		{filepath.Join(root, ".hidden"), true},
+		{root, false},
+		{filepath.Join("/", "data"), false},
+		{filepath.Join("/", "data", "rootx"), false},
+		{filepath.Join(root, "..", "other"), false},
+	}
+	for _, tt := range tests {
+		if got := IsInside(tt.path, root); got != tt.want {
+			t.Errorf("IsInside(%q, %q) = %v, want %v", tt.path, root, got, tt.want)
+		}
 	}
 }
 

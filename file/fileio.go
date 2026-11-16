@@ -1,11 +1,8 @@
 package file
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"io"
 	"os"
+	"path/filepath"
 )
 
 // Default permission modes.
@@ -19,6 +16,13 @@ const (
 
 	// Default permission mode for executable files.
 	DefaultExecMode os.FileMode = 0755
+
+	// Permission mode for directories that only their owner can read, write,
+	// or enter.
+	OwnerDirMode os.FileMode = 0o700
+
+	// Permission mode for files that only their owner can read or write.
+	OwnerFileMode os.FileMode = 0o600
 )
 
 // Removes dir if it contains no entries.
@@ -41,6 +45,36 @@ func RemoveDirIfEmpty(dir string) error {
 		return nil
 	}
 	return err
+}
+
+// Removes dir and each parent while it is empty, stopping before root.
+//
+// dir must be inside root. Stops at the first directory that is not empty.
+// Missing directories are skipped. root itself is never removed.
+func RemoveEmptyParents(dir, root string) error {
+	root = filepath.Clean(root)
+	for current := filepath.Clean(dir); IsInside(current, root); current = filepath.Dir(current) {
+		entries, err := os.ReadDir(current)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if len(entries) > 0 {
+			return nil
+		}
+		if err := os.Remove(current); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+// Whether path is strictly inside root.
+func IsInside(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != "." && filepath.IsLocal(rel)
 }
 
 // Lists the names of immediate subdirectories of dir.
@@ -71,41 +105,4 @@ func PathExists(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-// Writes r to destPath atomically via a temporary file in tmpDir.
-//
-// The data is streamed through a SHA-256 hash during the write. On success the
-// temporary file is renamed to destPath and the function returns the hex-encoded
-// digest (prefixed with "sha256:") and the number of bytes written. No partial
-// file is left behind on failure.
-func WriteAtomic(r io.Reader, tmpDir, destPath string) (string, int64, error) {
-	tmpFile, err := os.CreateTemp(tmpDir, ".tmp-*")
-	if err != nil {
-		return "", 0, err
-	}
-	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath) // No-op after successful rename.
-
-	h := sha256.New()
-	w := io.MultiWriter(tmpFile, h)
-
-	size, err := io.Copy(w, r)
-	if err != nil {
-		tmpFile.Close()
-		return "", 0, err
-	}
-	if err := tmpFile.Close(); err != nil {
-		return "", 0, err
-	}
-
-	if err := os.Rename(tmpPath, destPath); err != nil {
-		return "", 0, err
-	}
-	if err := os.Chmod(destPath, DefaultFileMode); err != nil {
-		return "", 0, err
-	}
-
-	digest := fmt.Sprintf("sha256:%s", hex.EncodeToString(h.Sum(nil)))
-	return digest, size, nil
 }
