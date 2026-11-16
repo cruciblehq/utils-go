@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -22,7 +23,11 @@ func DecodeRequest(r *http.Request, expected mediatype.MediaType, f codec.Format
 	if want := expected.With(f); !mediatype.Matches(ct, want) {
 		return crex.Newf(ErrUnexpectedContentType, "%q does not match %q", ct, want)
 	}
-	if err := codec.Read(r.Body, v, f); err != nil {
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		return crex.Wrap(ErrInvalidBody, err)
+	}
+	if err := codec.Decode(data, v, f); err != nil {
 		return crex.Wrap(ErrInvalidBody, err)
 	}
 	return nil

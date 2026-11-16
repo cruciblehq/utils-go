@@ -68,7 +68,7 @@ func TestWrite(t *testing.T) {
 		t.Errorf("Content-Type = %q, want %q", ct, testType.With(codec.JSON))
 	}
 	var p payload
-	if err := codec.Read(w.Body, &p, codec.JSON); err != nil || p.Name != "a" {
+	if err := codec.Decode(w.Body.Bytes(), &p, codec.JSON); err != nil || p.Name != "a" {
 		t.Errorf("body = %q, want a payload named a", w.Body.String())
 	}
 }
