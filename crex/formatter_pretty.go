@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 )
 
 // ANSI escape code to reset terminal color.
@@ -104,7 +105,7 @@ func formatValue(v slog.Value) string {
 	case slog.KindDuration:
 		return v.Duration().String()
 	case slog.KindTime:
-		return v.Time().Format("15:04:05")
+		return v.Time().Format(time.TimeOnly)
 	case slog.KindGroup:
 		var parts []string
 		for _, attr := range v.Group() {
@@ -118,12 +119,12 @@ func formatValue(v slog.Value) string {
 
 // Writes a crex error in "message: reason. recovery" format.
 func (f *PrettyFormatter) writeCrexError(sb *strings.Builder, errMap map[string]slog.Value) {
-	if reason, ok := errMap["reason"]; ok && reason.String() != "" {
+	if reason, ok := errMap[attrReason]; ok && reason.String() != "" {
 		sb.WriteString(": ")
 		sb.WriteString(reason.String())
 	}
 
-	if recovery, ok := errMap["recovery"]; ok && recovery.String() != "" {
+	if recovery, ok := errMap[attrRecovery]; ok && recovery.String() != "" {
 		sb.WriteString(". ")
 		sb.WriteString(recovery.String())
 	}
@@ -131,7 +132,7 @@ func (f *PrettyFormatter) writeCrexError(sb *strings.Builder, errMap map[string]
 	// In verbose mode, include additional error details
 	if f.Verbose {
 		for key, val := range errMap {
-			if key == "reason" || key == "recovery" || key == "description" || key == crexErrorMarker {
+			if key == attrReason || key == attrRecovery || key == attrDescription || key == crexErrorMarker {
 				continue
 			}
 			sb.WriteString(" ")

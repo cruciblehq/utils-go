@@ -156,10 +156,10 @@ func (w *wrapped) reasonString() string {
 func (w *wrapped) LogValue() slog.Value {
 	attrs := []slog.Attr{
 		slog.Bool(crexErrorMarker, true),
-		slog.String("description", w.sentinel.Error()),
+		slog.String(attrDescription, w.sentinel.Error()),
 	}
 	if reason := w.reasonString(); reason != "" {
-		attrs = append(attrs, slog.String("reason", reason))
+		attrs = append(attrs, slog.String(attrReason, reason))
 	}
 	if path := collectPath(w); len(path) > 0 {
 		segs := make([]any, 0, len(path)*2)

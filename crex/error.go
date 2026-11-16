@@ -5,12 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sort"
 	"strings"
 )
 
 // Sentinel key used to identify crex errors in slog output.
 const crexErrorMarker = "!github.com/cruciblehq/crex.Error"
+
+// Attribute keys of a logged crex error, shared by the error types and the formatters.
+const (
+	attrClass       = "class"       // Error class.
+	attrDescription = "description" // What failed.
+	attrReason      = "reason"      // Why it failed.
+	attrRecovery    = "recovery"    // How to recover.
+	attrCause       = "cause"       // Underlying error.
+)
 
 // Represents an error with rich context.
 //
@@ -98,11 +108,9 @@ func (r *Error) Details() map[string]any {
 	if r.details == nil {
 		return map[string]any{}
 	}
-	copy := make(map[string]any, len(r.details))
-	for k, v := range r.details {
-		copy[k] = v
-	}
-	return copy
+	m := make(map[string]any, len(r.details))
+	maps.Copy(m, r.details)
+	return m
 }
 
 // Returns a sorted list of all detail keys.
@@ -169,20 +177,20 @@ func (r *Error) Format(f fmt.State, verb rune) {
 func (r *Error) LogValue() slog.Value {
 	attrs := []slog.Attr{
 		slog.Bool(crexErrorMarker, true),
-		slog.String("class", string(r.class)),
-		slog.String("description", r.description),
+		slog.String(attrClass, string(r.class)),
+		slog.String(attrDescription, r.description),
 	}
 
 	if r.reason != "" {
-		attrs = append(attrs, slog.String("reason", r.reason))
+		attrs = append(attrs, slog.String(attrReason, r.reason))
 	}
 
 	if r.recovery != "" {
-		attrs = append(attrs, slog.String("recovery", r.recovery))
+		attrs = append(attrs, slog.String(attrRecovery, r.recovery))
 	}
 
 	if r.cause != nil {
-		attrs = append(attrs, slog.String("cause", r.cause.Error()))
+		attrs = append(attrs, slog.String(attrCause, r.cause.Error()))
 	}
 
 	if len(r.details) > 0 {

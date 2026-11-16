@@ -42,6 +42,35 @@ func TestJSONFormatter_Write_Simple(t *testing.T) {
 	}
 }
 
+func TestJSONFormatter_Write_Time(t *testing.T) {
+	f := NewJSONFormatter()
+	var buf bytes.Buffer
+	at := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+
+	if err := f.Write(&buf, &RecordContext{Record: slog.NewRecord(at, slog.LevelInfo, "m", 0)}); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result["time"] != at.Format(time.RFC3339Nano) {
+		t.Errorf("time = %v, want %v", result["time"], at.Format(time.RFC3339Nano))
+	}
+
+	buf.Reset()
+	if err := f.Write(&buf, &RecordContext{Record: slog.NewRecord(time.Time{}, slog.LevelInfo, "m", 0)}); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	result = nil
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := result["time"]; ok {
+		t.Errorf("time = %v, want no time for a zero timestamp", result["time"])
+	}
+}
+
 func TestJSONFormatter_Write_NonVerbose(t *testing.T) {
 	f := NewJSONFormatter()
 	// Default is non-verbose
@@ -61,9 +90,9 @@ func TestJSONFormatter_Write_NonVerbose(t *testing.T) {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
 
-	// Non-verbose should only have level and message
-	if len(result) != 2 {
-		t.Errorf("result length = %d, want 2", len(result))
+	// Non-verbose should only have level, message, and time
+	if len(result) != 3 {
+		t.Errorf("result length = %d, want 3", len(result))
 	}
 	if _, ok := result["key"]; ok {
 		t.Error("non-verbose output contains attribute 'key'")
