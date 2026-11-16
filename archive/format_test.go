@@ -27,15 +27,15 @@ func TestFormatOf(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := FormatOf(tt.name)
+			got, err := FormatOfName(tt.name)
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("FormatOf(%q) error = %v, wantErr %v", tt.name, err, tt.wantErr)
+				t.Fatalf("FormatOfName(%q) error = %v, wantErr %v", tt.name, err, tt.wantErr)
 			}
 			if err != nil && !errors.Is(err, ErrUnsupportedFormat) {
-				t.Fatalf("FormatOf(%q) = %v, want %v", tt.name, err, ErrUnsupportedFormat)
+				t.Fatalf("FormatOfName(%q) = %v, want %v", tt.name, err, ErrUnsupportedFormat)
 			}
 			if got != tt.want {
-				t.Fatalf("FormatOf(%q) = %v, want %v", tt.name, got, tt.want)
+				t.Fatalf("FormatOfName(%q) = %v, want %v", tt.name, got, tt.want)
 			}
 		})
 	}
@@ -71,15 +71,15 @@ func TestDetect(t *testing.T) {
 
 	for _, f := range []Format{Tar, Gzip, Zstd} {
 		t.Run(f.String(), func(t *testing.T) {
-			got, r, err := Detect(compressBytes(t, data, f))
+			got, r, err := DetectFormat(compressBytes(t, data, f))
 			if err != nil {
-				t.Fatalf("Detect() error = %v, want nil", err)
+				t.Fatalf("DetectFormat() error = %v, want nil", err)
 			}
 			if got != f {
-				t.Fatalf("Detect() = %v, want %v", got, f)
+				t.Fatalf("DetectFormat() = %v, want %v", got, f)
 			}
 			if !bytes.Equal(decompressAll(t, r, got), data) {
-				t.Fatal("Detect() reader does not yield the whole stream")
+				t.Fatal("DetectFormat() reader does not yield the whole stream")
 			}
 		})
 	}
@@ -118,19 +118,19 @@ func decompressAll(t *testing.T, r io.Reader, f Format) []byte {
 }
 
 func TestDetectEmptyStream(t *testing.T) {
-	got, _, err := Detect(bytes.NewReader(nil))
+	got, _, err := DetectFormat(bytes.NewReader(nil))
 	if err != nil {
-		t.Fatalf("Detect() error = %v, want nil", err)
+		t.Fatalf("DetectFormat() error = %v, want nil", err)
 	}
 	if got != Tar {
-		t.Fatalf("Detect() = %v, want %v", got, Tar)
+		t.Fatalf("DetectFormat() = %v, want %v", got, Tar)
 	}
 }
 
 func TestDetectReadError(t *testing.T) {
-	_, _, err := Detect(errReader{})
+	_, _, err := DetectFormat(errReader{})
 	if !errors.Is(err, ErrReadFailed) {
-		t.Fatalf("Detect() = %v, want %v", err, ErrReadFailed)
+		t.Fatalf("DetectFormat() = %v, want %v", err, ErrReadFailed)
 	}
 }
 

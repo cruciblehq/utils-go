@@ -55,7 +55,7 @@ func (f Format) String() string {
 //
 // The check ignores letter case. Returns [ErrUnsupportedFormat] if the
 // extension is not one of the extensions listed in [Format].
-func FormatOf(name string) (Format, error) {
+func FormatOfName(name string) (Format, error) {
 	lower := strings.ToLower(name)
 	switch {
 	case strings.HasSuffix(lower, extZstd):
@@ -73,7 +73,7 @@ func FormatOf(name string) (Format, error) {
 //
 // Returns the format and a reader that yields the whole stream, including the
 // bytes inspected. A stream that is not Gzip or Zstandard is reported as [Tar].
-func Detect(r io.Reader) (Format, io.Reader, error) {
+func DetectFormat(r io.Reader) (Format, io.Reader, error) {
 	br := bufio.NewReader(r)
 	head, err := br.Peek(len(zstdMagic))
 	if err != nil && !errors.Is(err, io.EOF) {

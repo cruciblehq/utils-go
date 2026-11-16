@@ -2,7 +2,9 @@ package codec
 
 import (
 	"errors"
+	"strings"
 	"testing"
+	"testing/iotest"
 )
 
 func TestUnmarshal_JSON(t *testing.T) {
@@ -258,5 +260,23 @@ func TestDecode_StringIntoBytesUnchanged(t *testing.T) {
 	}
 	if string(got.Data) != "raw" {
 		t.Errorf("Decode data = %q, want %q", got.Data, "raw")
+	}
+}
+
+func TestRead(t *testing.T) {
+	var s sample
+	if err := Read(strings.NewReader("name: baz\nversion: 3\n"), &s, YAML); err != nil {
+		t.Fatalf("Read() = %v, want nil", err)
+	}
+	if s.Name != "baz" || s.Version != 3 {
+		t.Errorf("Read(YAML) = %+v", s)
+	}
+}
+
+func TestRead_ReaderError(t *testing.T) {
+	var s sample
+	readErr := iotest.ErrTimeout
+	if err := Read(iotest.ErrReader(readErr), &s, JSON); !errors.Is(err, readErr) {
+		t.Fatalf("Read() = %v, want %v", err, readErr)
 	}
 }

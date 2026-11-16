@@ -2,8 +2,9 @@
 //
 // Archives are tar or tar compressed with Gzip or Zstandard (see [Format]).
 // Every function reads from an [io.Reader] or writes to an [io.Writer], so
-// the caller decides where the bytes live. [FormatOf] finds the format from
-// a file name and [Detect] finds it from the leading bytes of a stream.
+// the caller decides where the bytes live. [FormatOfName] finds the format
+// from a file name and [DetectFormat] finds it from the leading bytes of a
+// stream.
 //
 // [Write] archives a file or directory tree. Only regular files and directories
 // are archivable. Symlinks and special files (devices, sockets, named pipes)

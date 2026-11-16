@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"reflect"
 	"strings"
 
@@ -66,6 +67,18 @@ func (c *Codec) Unmarshal(data []byte, v any, f Format) error {
 		return err
 	}
 	return c.forFormat(f).Decode(m, v)
+}
+
+// Reads r to the end and populates v from it in the given format.
+//
+// Behaves like [Codec.Unmarshal] on everything read from r. Returns the read
+// error when r fails.
+func (c *Codec) Read(r io.Reader, v any, f Format) error {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	return c.Unmarshal(data, v, f)
 }
 
 // Returns a copy of c configured for values parsed from format f.
