@@ -50,7 +50,7 @@ func (s *DirKeyStore) Load(name string) (crypto.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseKey(der)
+	return DecodeKey(der)
 }
 
 // Stores key under name, replacing any previous key.
@@ -59,7 +59,7 @@ func (s *DirKeyStore) Store(name string, key crypto.Signer) error {
 	if err != nil {
 		return err
 	}
-	der, err := MarshalKey(key)
+	der, err := EncodeKey(key)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (s *DirKeyStore) path(name string) (string, error) {
 }
 
 // Encodes key in PKCS #8 DER form.
-func MarshalKey(key crypto.Signer) ([]byte, error) {
+func EncodeKey(key crypto.Signer) ([]byte, error) {
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
 		return nil, crex.Wrap(ErrInvalidKey, err)
@@ -87,7 +87,7 @@ func MarshalKey(key crypto.Signer) ([]byte, error) {
 }
 
 // Decodes a PKCS #8 DER private key that can sign.
-func ParseKey(der []byte) (crypto.Signer, error) {
+func DecodeKey(der []byte) (crypto.Signer, error) {
 	parsed, err := x509.ParsePKCS8PrivateKey(der)
 	if err != nil {
 		return nil, crex.Wrap(ErrInvalidKey, err)

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestUnmarshal_JSON(t *testing.T) {
+func TestDecode_JSON(t *testing.T) {
 	var s sample
 	err := Decode([]byte(`{"name":"bar","version":2}`), &s, JSON)
 	if err != nil {
@@ -16,7 +16,7 @@ func TestUnmarshal_JSON(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_YAML(t *testing.T) {
+func TestDecode_YAML(t *testing.T) {
 	var s sample
 	err := Decode([]byte("name: baz\nversion: 3\n"), &s, YAML)
 	if err != nil {
@@ -27,7 +27,7 @@ func TestUnmarshal_YAML(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_UnsupportedFormat(t *testing.T) {
+func TestDecode_UnsupportedFormat(t *testing.T) {
 	var s sample
 	err := Decode([]byte("{}"), &s, Format(99))
 	if !errors.Is(err, ErrUnsupportedFormat) {
@@ -35,7 +35,7 @@ func TestUnmarshal_UnsupportedFormat(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_InvalidData(t *testing.T) {
+func TestDecode_InvalidData(t *testing.T) {
 	var s sample
 	err := Decode([]byte("not json"), &s, JSON)
 	if err == nil {
@@ -43,7 +43,7 @@ func TestUnmarshal_InvalidData(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_CustomDecodable(t *testing.T) {
+func TestDecode_CustomDecodable(t *testing.T) {
 	c := &custom{}
 	err := Decode([]byte(`{"custom":"raw-input"}`), c, JSON)
 	if err != nil {
@@ -54,7 +54,7 @@ func TestUnmarshal_CustomDecodable(t *testing.T) {
 	}
 }
 
-func TestDecode(t *testing.T) {
+func TestFromMap(t *testing.T) {
 	m := map[string]any{"name": "y", "version": 10}
 	var s sample
 	if err := Default().FromMap(m, &s); err != nil {
@@ -65,7 +65,7 @@ func TestDecode(t *testing.T) {
 	}
 }
 
-func TestDecode_WeaklyTyped(t *testing.T) {
+func TestFromMap_WeaklyTyped(t *testing.T) {
 	m := map[string]any{"name": "w", "version": "8"}
 	var s sample
 	if err := Default().FromMap(m, &s); err != nil {
@@ -76,7 +76,7 @@ func TestDecode_WeaklyTyped(t *testing.T) {
 	}
 }
 
-func TestDecode_Squash(t *testing.T) {
+func TestFromMap_Squash(t *testing.T) {
 	m := map[string]any{"name": "sq", "version": 7, "extra": "e"}
 	var s squashed
 	if err := Default().FromMap(m, &s); err != nil {
@@ -198,7 +198,7 @@ func (p *payloadHolder) Decode(c *Codec, raw any) error {
 	return c.FromMap(raw.(map[string]any), &p.Inner)
 }
 
-func TestUnmarshal_JSONBytes(t *testing.T) {
+func TestDecode_JSONBytes(t *testing.T) {
 	want := []byte{0xff, 0x00, 'h', '\n'}
 	data, err := Encode(payload{Data: want}, JSON)
 	if err != nil {
@@ -213,7 +213,7 @@ func TestUnmarshal_JSONBytes(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_JSONBytesInvalidBase64(t *testing.T) {
+func TestDecode_JSONBytesInvalidBase64(t *testing.T) {
 	var got payload
 	err := Decode([]byte(`{"data":"not base64!"}`), &got, JSON)
 	if !errors.Is(err, ErrInvalidBase64) {
@@ -221,7 +221,7 @@ func TestUnmarshal_JSONBytesInvalidBase64(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_JSONBytesInDecodable(t *testing.T) {
+func TestDecode_JSONBytesInDecodable(t *testing.T) {
 	want := []byte("nested")
 	data, err := Encode(payload{Data: want}, JSON)
 	if err != nil {
@@ -236,7 +236,7 @@ func TestUnmarshal_JSONBytesInDecodable(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_YAMLBytes(t *testing.T) {
+func TestDecode_YAMLBytes(t *testing.T) {
 	want := []byte{0xff, 0x00, 'h'}
 	data, err := Encode(payload{Data: want}, YAML)
 	if err != nil {
@@ -251,7 +251,7 @@ func TestUnmarshal_YAMLBytes(t *testing.T) {
 	}
 }
 
-func TestDecode_StringIntoBytesUnchanged(t *testing.T) {
+func TestFromMap_StringIntoBytesUnchanged(t *testing.T) {
 	var got payload
 	if err := Default().FromMap(map[string]any{"data": "raw"}, &got); err != nil {
 		t.Fatal(err)

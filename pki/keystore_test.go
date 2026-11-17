@@ -96,27 +96,27 @@ func TestDirKeyStoreCorruptKey(t *testing.T) {
 	}
 }
 
-func TestMarshalParseKey(t *testing.T) {
+func TestEncodeDecodeKey(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	der, err := MarshalKey(key)
+	der, err := EncodeKey(key)
 	if err != nil {
-		t.Fatalf("MarshalKey() = %v, want nil", err)
+		t.Fatalf("EncodeKey() = %v, want nil", err)
 	}
-	got, err := ParseKey(der)
+	got, err := DecodeKey(der)
 	if err != nil {
-		t.Fatalf("ParseKey() = %v, want nil", err)
+		t.Fatalf("DecodeKey() = %v, want nil", err)
 	}
 	if !key.Equal(got) {
-		t.Error("ParseKey() returned a different key")
+		t.Error("DecodeKey() returned a different key")
 	}
 }
 
 func TestParseKeyInvalid(t *testing.T) {
-	if _, err := ParseKey([]byte("garbage")); !errors.Is(err, ErrInvalidKey) {
-		t.Errorf("ParseKey() = %v, want %v", err, ErrInvalidKey)
+	if _, err := DecodeKey([]byte("garbage")); !errors.Is(err, ErrInvalidKey) {
+		t.Errorf("DecodeKey() = %v, want %v", err, ErrInvalidKey)
 	}
 }

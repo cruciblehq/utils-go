@@ -36,12 +36,12 @@ func (s *Store) Load(name string) (crypto.Signer, error) {
 	if err != nil {
 		return nil, crex.Wrap(pki.ErrInvalidKey, err)
 	}
-	return pki.ParseKey(der)
+	return pki.DecodeKey(der)
 }
 
 // Stores key under name, replacing any previous key.
 func (s *Store) Store(name string, key crypto.Signer) error {
-	der, err := pki.MarshalKey(key)
+	der, err := pki.EncodeKey(key)
 	if err != nil {
 		return err
 	}
