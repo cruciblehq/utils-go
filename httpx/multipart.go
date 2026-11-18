@@ -83,18 +83,18 @@ func (m *MultipartWriter) Write(v any, dataType mediatype.MediaType, data io.Rea
 //
 // contentType is the Content-Type of the body. Its type parameter and the
 // message part must both have media type mt with the suffix of f, and the data
-// part must have media type dataType. Returns [ErrUnexpectedContentType] when a media type does not
-// match, and [ErrInvalidBody] when the body is not a valid multipart body. The
-// returned reader reads the data part from body, so body must stay open until
-// the data part is read.
+// part must have media type dataType. Returns [ErrUnexpectedContentType] when
+// a media type does not match, and [ErrInvalidBody] when the body is not a
+// valid multipart body. The returned reader reads the data part from body, so
+// body must stay open until the data part is read.
 func ReadMultipart(contentType string, body io.Reader, mt mediatype.MediaType, f codec.Format, v any, dataType mediatype.MediaType) (io.Reader, error) {
 	kind, params, err := mime.ParseMediaType(contentType)
 	if err != nil || kind != multipartRelated || params[boundaryParam] == "" {
 		return nil, crex.Newf(ErrUnexpectedContentType, "%q is not a multipart body", contentType)
 	}
-	want := mt.With(f)
-	if !mediatype.Matches(params[typeParam], want) {
-		return nil, crex.Newf(ErrUnexpectedContentType, "%q does not match %q", params[typeParam], want)
+	expected := mt.With(f)
+	if !mediatype.Matches(params[typeParam], expected) {
+		return nil, crex.Newf(ErrUnexpectedContentType, "multipart body declares message type %q where %q is expected", params[typeParam], expected)
 	}
 	r := multipart.NewReader(body, params[boundaryParam])
 
@@ -102,8 +102,8 @@ func ReadMultipart(contentType string, body io.Reader, mt mediatype.MediaType, f
 	if err != nil {
 		return nil, crex.Wrap(ErrInvalidBody, err)
 	}
-	if ct := part.Header.Get(HeaderContentType); !mediatype.Matches(ct, want) {
-		return nil, crex.Newf(ErrUnexpectedContentType, "%q does not match %q", ct, want)
+	if ct := part.Header.Get(HeaderContentType); !mediatype.Matches(ct, expected) {
+		return nil, crex.Newf(ErrUnexpectedContentType, "message part has media type %q where %q is expected", ct, expected)
 	}
 	msg, err := io.ReadAll(part)
 	if err != nil {
@@ -117,8 +117,8 @@ func ReadMultipart(contentType string, body io.Reader, mt mediatype.MediaType, f
 	if err != nil {
 		return nil, crex.Wrap(ErrInvalidBody, err)
 	}
-	if ct, want := part.Header.Get(HeaderContentType), dataType.String(); !mediatype.Matches(ct, want) {
-		return nil, crex.Newf(ErrUnexpectedContentType, "%q does not match %q", ct, want)
+	if ct := part.Header.Get(HeaderContentType); !mediatype.Matches(ct, dataType.String()) {
+		return nil, crex.Newf(ErrUnexpectedContentType, "data part has media type %q where %q is expected", ct, dataType)
 	}
 	return part, nil
 }

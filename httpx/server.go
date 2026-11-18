@@ -20,8 +20,8 @@ import (
 // read or decoded as f.
 func DecodeRequest(r *http.Request, expected mediatype.MediaType, f codec.Format, v any) error {
 	ct := r.Header.Get(HeaderContentType)
-	if want := expected.With(f); !mediatype.Matches(ct, want) {
-		return crex.Newf(ErrUnexpectedContentType, "%q does not match %q", ct, want)
+	if mt := expected.With(f); !mediatype.Matches(ct, mt) {
+		return crex.Newf(ErrUnexpectedContentType, "request body has media type %q where %q is expected", ct, mt)
 	}
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
