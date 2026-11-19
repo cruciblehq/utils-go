@@ -40,7 +40,7 @@ func NewMultipartWriter(w io.Writer, mt mediatype.MediaType, f codec.Format) *Mu
 	return &MultipartWriter{w: multipart.NewWriter(w), mt: mt, f: f}
 }
 
-// Returns the Content-Type of the body, including its message type and boundary.
+// Returns the Content-Type of the body, with its message type and boundary.
 func (m *MultipartWriter) ContentType() string {
 	return mime.FormatMediaType(multipartRelated, map[string]string{
 		typeParam:     m.mt.With(m.f),
@@ -79,13 +79,15 @@ func (m *MultipartWriter) Write(v any, dataType mediatype.MediaType, data io.Rea
 	return m.w.Close()
 }
 
-// Decodes the message part of a multipart body into v and returns the data part.
+// Decodes the message part of a multipart body into v and returns the data
+// part.
 //
 // contentType is the Content-Type of the body. Its type parameter and the
 // message part must both have media type mt with the suffix of f, and the data
 // part must have media type dataType. Returns [ErrUnexpectedContentType] when
-// a media type does not match, and [ErrInvalidBody] when the body is not a
-// valid multipart body. The returned reader reads the data part from body, so
+// contentType is not multipart/related or a media type does not match, and
+// [ErrInvalidBody] when the body is not a valid multipart body or the message
+// cannot be decoded. The returned reader reads the data part from body, so
 // body must stay open until the data part is read.
 func ReadMultipart(contentType string, body io.Reader, mt mediatype.MediaType, f codec.Format, v any, dataType mediatype.MediaType) (io.Reader, error) {
 	kind, params, err := mime.ParseMediaType(contentType)

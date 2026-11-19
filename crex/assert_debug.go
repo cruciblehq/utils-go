@@ -7,23 +7,24 @@ import (
 	"runtime"
 )
 
-// Panics if the condition is false.
+// Panics with message if the condition is false.
 //
-// This function is only active when built with the 'debug' build tag. In
-// release builds (without the tag), this is a no-op.
+// This function is only active when built with the "debug" build tag. In
+// other builds it does nothing.
 func Assert(condition bool, message string) {
 	assert(condition, message)
 }
 
-// Panics if the condition is false.
+// Panics with the formatted message if the condition is false.
 //
-// This function is only active when built with the 'debug' build tag. In
-// release builds (without the tag), this is a no-op.
+// This function is only active when built with the "debug" build tag. In
+// other builds it does nothing.
 func Assertf(condition bool, format string, args ...any) {
 	assert(condition, fmt.Sprintf(format, args...))
 }
 
-// Internal helper for assertions.
+// Panics with message and the location of the asserting call if condition is
+// false.
 func assert(condition bool, message string) {
 	if !condition {
 		_, file, line, _ := runtime.Caller(2)

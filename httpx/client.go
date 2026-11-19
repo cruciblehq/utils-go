@@ -21,7 +21,7 @@ const MaxErrorPayload = 1 << 20
 
 // Builds a request for path under base with the given query and body.
 //
-// base is the scheme and host, optionally with a path that path is joined
+// base is the scheme and host, and may also hold a path that path is joined
 // to. query may be nil.
 func NewRequest(ctx context.Context, method, base, path string, query url.Values, body io.Reader) (*http.Request, error) {
 	u, err := url.Parse(base)

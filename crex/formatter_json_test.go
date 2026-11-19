@@ -73,7 +73,6 @@ func TestJSONFormatter_Write_Time(t *testing.T) {
 
 func TestJSONFormatter_Write_NonVerbose(t *testing.T) {
 	f := NewJSONFormatter()
-	// Default is non-verbose
 	var buf bytes.Buffer
 
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "message", 0)
@@ -153,6 +152,13 @@ func TestJSONFormatter_Write_NewlineTerminated(t *testing.T) {
 	}
 }
 
+type testValuer struct {
+}
+
+func (testValuer) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("a", "1"))
+}
+
 func TestResolveValue(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -189,6 +195,11 @@ func TestResolveValue(t *testing.T) {
 				"key":    "value",
 				"nested": map[string]any{"inner": "data"},
 			},
+		},
+		{
+			name:  "log valuer",
+			value: slog.AnyValue(testValuer{}),
+			want:  map[string]any{"a": "1"},
 		},
 	}
 
@@ -242,7 +253,6 @@ func TestJSONFormatter_Write_Verbose(t *testing.T) {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
 
-	// Verbose should include attributes
 	if result["key1"] != "value1" {
 		t.Errorf("key1 = %v, want value1", result["key1"])
 	}
@@ -275,7 +285,6 @@ func TestJSONFormatter_Write_VerboseWithGroups(t *testing.T) {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
 
-	// Verbose should include groups
 	groups, ok := result["groups"].([]any)
 	if !ok {
 		t.Fatal("groups field missing or not an array")
@@ -315,7 +324,6 @@ func TestJSONFormatter_Write_VerboseWithNestedGroups(t *testing.T) {
 		t.Fatalf("json.Unmarshal() error = %v", err)
 	}
 
-	// Check nested structure
 	outer, ok := result["outer"].(map[string]any)
 	if !ok {
 		t.Fatal("outer is not a map")
@@ -338,7 +346,6 @@ func TestJSONFormatter_Write_InvalidJSON(t *testing.T) {
 	var buf bytes.Buffer
 
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
-	// Add various types
 	record.AddAttrs(
 		slog.String("string", "value"),
 		slog.Int("int", 123),
@@ -353,7 +360,6 @@ func TestJSONFormatter_Write_InvalidJSON(t *testing.T) {
 		t.Fatalf("Write() error = %v", err)
 	}
 
-	// Verify it's valid JSON
 	var result map[string]any
 	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
 		t.Fatalf("output is not valid JSON: %v\nOutput: %s", err, buf.String())

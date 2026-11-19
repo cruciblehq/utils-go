@@ -12,18 +12,19 @@ import (
 // [ErrorBuilder] allows constructing [Error] instances using several factory
 // and setter methods. The factories are organized according to error class,
 // allowing the caller to specify whether the error is a user error with
-// [UserError], a system error with [SystemError], or a programming/bug error
-// with [ProgrammingError]. Each factory method also includes a formatted
-// variant (e.g., [UserErrorf]).
+// [UserError], a system error with [SystemError], or a programming error
+// with [ProgrammingError]. Each factory also has a formatted variant (e.g.,
+// [UserErrorf]).
 //
 // [ErrorBuilder] allows setting various attributes of an error: description,
 // reason, recovery, cause, additional details, and context. Description and
 // reason are required and must be provided when creating the builder. Recovery,
 // cause, details, and context can be set using their respective setter methods:
-// [Recovery], [Cause], [Detail], and [Context].
+// [ErrorBuilder.Recovery], [ErrorBuilder.Cause], [ErrorBuilder.Detail], and
+// [ErrorBuilder.Context].
 //
-// Once all desired attributes are set, [Err] can be called to retrieve the
-// constructed [Error] instance.
+// Once all desired attributes are set, [ErrorBuilder.Err] can be called to
+// retrieve the constructed [Error] instance.
 type ErrorBuilder struct {
 	err Error // The error being built.
 }
@@ -119,7 +120,7 @@ func (b *ErrorBuilder) Err() error {
 	return &b.err
 }
 
-// Builds the error with err as its cause unless err is already classful.
+// Builds the error with err as its cause unless err already has a class.
 //
 // When err already carries an [Error] anywhere in its chain, the existing
 // classification wins and err is returned unchanged. Otherwise err becomes
@@ -137,7 +138,7 @@ func (b *ErrorBuilder) Ensure(err error) error {
 	return &b.err
 }
 
-// Builds the error with err as its cause, overriding any existing classification.
+// Builds the error with err as its cause, overriding any existing class.
 //
 // The error being built becomes the outermost classification regardless of
 // whether err already carries one, so the new class takes precedence while the

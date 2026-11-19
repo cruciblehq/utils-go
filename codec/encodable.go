@@ -11,10 +11,10 @@ import (
 
 // Implemented by types that need custom encoding logic.
 //
-// When [Codec.Encode] encounters a value that implements this interface, it
-// delegates to Encode instead of using the default encode algorithm. The
-// returned value must be a map, slice, or scalar that the format encoder
-// (JSON/YAML) can serialize.
+// When the value passed to [Codec.Encode] implements this interface, the codec
+// delegates to Encode instead of using the default encode algorithm. Nested
+// values are not checked. The returned value must be a map, slice, or scalar
+// that the format encoder (JSON/YAML) can serialize.
 type Encodable interface {
 
 	// Encodes the receiver to a format-independent value.

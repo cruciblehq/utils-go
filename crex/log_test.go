@@ -8,8 +8,6 @@ import (
 	"testing"
 )
 
-// Builds a logger backed by a pretty formatter writing to a buffer, returning
-// the logger, the handler for flushing, and the buffer for assertions.
 func newBufferLogger(verbose bool) (*slog.Logger, Handler, *bytes.Buffer) {
 	buf := &bytes.Buffer{}
 	f := NewPrettyFormatter(false)

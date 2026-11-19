@@ -1,19 +1,21 @@
-// Crex provides structured error management.
+// Package crex provides structured error management.
 //
 // Crex errors include a description, reason, recovery suggestion, underlying
 // cause, error class, and additional details. They are designed to provide
-// user-friendly error messages that explain what happened, why, and what the
-// user can do about it.
+// clear error messages that explain what happened, why, and what the user can
+// do about it.
 //
 // Note:
 //
 //	Go's standard error chaining produces output that is often hard to read
-//	for end users. Crex provides a more user-friendly representation with
-//	structured information.
+//	for end users. Crex provides a clearer representation with structured
+//	information.
 //
-//	Crex isn't meant to replace standard errors. Low-level system interactions
-//	should still use standard errors. Crex is designed for higher-level error
-//	management and user-facing context.
+//	The [Error] type isn't meant to replace plain errors. Library code and
+//	low-level system interactions should use sentinel errors made with [New],
+//	and attach them with [Newf], [Wrap], [Wrapf], and [Tag]. [At] and [AtName]
+//	record where in a structure a failure was found. The [Error] type is meant
+//	for higher-level error management and context shown to users.
 //
 //	As a rule of thumb, consider what is known about the user's actions when
 //	creating errors. If the error can be explained in terms of what the user
@@ -38,7 +40,7 @@
 //   - [ErrorClassUser]: User-caused errors (bad input, invalid options)
 //   - [ErrorClassSystem]: External system errors (network, filesystem)
 //   - [ErrorClassProgramming]: Application bugs (should not happen)
-//   - [ErrorClassUnknown]: Errors from unknown sources (default, avoid in practice)
+//   - [ErrorClassUnknown]: Errors from unknown sources (avoid in practice)
 //
 // Crex also provides a custom [slog.Handler] implementation that buffers log
 // records until configured. This addresses the common CLI problem where
@@ -75,9 +77,9 @@
 //   - [JSONFormatter]: Machine-readable JSON output
 //
 // The [PrettyFormatter] automatically detects crex errors and formats them
-// as "description: reason. recovery". The [JSONFormatter] outputs all attributes
-// as nested JSON objects.
+// as "description: reason. recovery". In verbose mode, the [JSONFormatter]
+// outputs all attributes, with groups as nested JSON objects.
 //
-// Crex provides [Assert] and [Assertf] for debug-only assertions that are
-// stripped in release builds (when built without the "debug" tag).
+// Crex provides [Assert] and [Assertf] for assertions that run only in builds
+// with the "debug" tag. In other builds they do nothing.
 package crex

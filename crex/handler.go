@@ -9,14 +9,14 @@ import (
 	"sync"
 )
 
-// Custom implementation of the [slog.Handler] interface that buffers logs and
-// can flush them to an output stream using a specified [Formatter].
+// [slog.Handler] that buffers logs and can flush them to an output stream
+// using a specified [Formatter].
 //
 // The handler supports setting log attributes and groups, and allows dynamic
 // configuration of the output stream and formatter. The handler buffers log
 // records until a formatter is set. At that point, it starts flushing buffered
 // records to the output stream. The flush can happen implicitly on the next log
-// record or explicitly by calling [Flush].
+// record or explicitly by calling [Handler.Flush].
 //
 // The handler is safe for concurrent use.
 type Handler interface {
@@ -27,15 +27,15 @@ type Handler interface {
 	// Only log records with a level equal to or higher than this level will be
 	// processed. The default level is [slog.LevelInfo]. The method returns the
 	// handler itself to allow method chaining. The current log level can be
-	// retrieved using [Level]. Setting the log level only affects new records;
-	// it does not retroactively filter already buffered records.
+	// retrieved using [Handler.Level]. Setting the log level only affects new
+	// records; it does not retroactively filter already buffered records.
 	SetLevel(slog.Level) Handler
 
 	// Returns the current minimum level of the handler.
 	//
 	// Only log records with a level equal to or higher than this level are
 	// processed. The default level is [slog.LevelInfo]. The log level can
-	// be changed using [SetLevel].
+	// be changed using [Handler.SetLevel].
 	Level() slog.Level
 
 	// Sets the output stream for the handler.
@@ -47,7 +47,8 @@ type Handler interface {
 	// Sets the formatter for the handler.
 	//
 	// After setting the formatter, buffered log records can be flushed to the
-	// output stream by calling [Flush], or implicitly on the next log record.
+	// output stream by calling [Handler.Flush], or implicitly on the next log
+	// record.
 	SetFormatter(Formatter) Handler
 
 	// Returns the current Formatter of the handler.
@@ -128,7 +129,9 @@ func (h *handler) SetStream(stream io.Writer) Handler {
 	return h
 }
 
-// Acquires the shared read lock and returns the current output stream. Defaults to [os.Stderr].
+// Acquires the shared read lock and returns the current output stream.
+//
+// The default stream is [os.Stderr].
 func (h *handler) Stream() io.Writer {
 	h.state.mux.RLock()
 	defer h.state.mux.RUnlock()
@@ -216,7 +219,8 @@ func (h *handler) Handle(_ context.Context, record slog.Record) error {
 	return err
 }
 
-// Returns a new handler sharing state with this one but with the given attrs appended.
+// Returns a new handler sharing state with this one but with the given attrs
+// appended.
 func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	// No lock needed here as we are creating a new struct with copied data
 	// and h.attrs and h.groups are immutable after creation.
@@ -232,7 +236,8 @@ func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 }
 
-// Returns a new handler sharing state with this one but with name appended to groups.
+// Returns a new handler sharing state with this one but with name appended to
+// groups.
 func (h *handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h

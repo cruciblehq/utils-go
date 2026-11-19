@@ -142,8 +142,8 @@ func validateAndJoinPath(dest, name string) (string, error) {
 // Extracts a single tar entry to target.
 //
 // Handles directories, regular files, symlinks, and hard links. PAX extended
-// headers are skipped. Returns [ErrUnsupportedFileType] for all other entry
-// types (devices, FIFOs, etc.).
+// headers and GNU long name headers are skipped. Returns [ErrUnsupportedFileType]
+// for all other entry types (devices, FIFOs, etc.).
 func extractEntry(header *tar.Header, tr *tar.Reader, dest, target string) error {
 	switch header.Typeflag {
 	case tar.TypeDir:
@@ -190,12 +190,11 @@ func extractEntry(header *tar.Header, tr *tar.Reader, dest, target string) error
 
 // Rejects symlinks whose resolved target escapes the destination tree.
 //
-// The linkname in a tar archive is interpreted as relative to the symlink
-// location, even if it is an absolute path. This means that a symlink with
-// Linkname "../etc/passwd" is valid if it is located at "foo/bar/link" and
-// dest is "foo/bar", but invalid if it is located at "foo/link" and dest is
-// "foo". The resolved link target must be equal to or a descendant of the
-// cleaned destination path.
+// A relative linkname is resolved from the directory that holds the symlink.
+// An absolute linkname is used as is. For example, a symlink at "foo/bar/link"
+// with linkname "../x" resolves to "foo/x". It is valid when dest is "foo",
+// but invalid when dest is "foo/bar". The resolved link target must be equal
+// to or inside the cleaned destination path.
 func validateSymlink(dest, target, linkname string) error {
 	resolved := linkname
 	if !filepath.IsAbs(resolved) {

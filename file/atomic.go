@@ -23,7 +23,8 @@ type AtomicFile struct {
 	done bool        // Whether Commit or Abort has run.
 }
 
-// Creates a temporary file in dir that becomes visible only on [AtomicFile.Commit].
+// Creates a temporary file in dir that becomes visible only on
+// [AtomicFile.Commit].
 //
 // dir must be on the same file system as the final path, so the rename is
 // atomic. The file gets mode when committed, independent of the umask.

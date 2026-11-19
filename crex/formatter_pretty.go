@@ -22,13 +22,13 @@ const colorReset = "\033[0m"
 //
 // Example output (non-verbose):
 //
-//	crux [info]: server started
-//	crux [error]: build failed: invalid type. Use widget or service.
+//	[info]: server started
+//	[error]: cannot load config: file is missing. Run init first.
 //
 // Example output (verbose):
 //
-//	crux [info]: server started port=8080 host=localhost
-//	crux [error]: build failed: invalid type. Use widget or service. class=user
+//	[info]: server started port=8080 host=localhost
+//	[error]: cannot load config: file is missing. Run init first. class=user
 type PrettyFormatter struct {
 	UseColor bool // Whether to colorize log levels using ANSI escape codes.
 	Verbose  bool // Whether to include all attributes in the output.
@@ -117,7 +117,8 @@ func formatValue(v slog.Value) string {
 	}
 }
 
-// Writes a crex error in "message: reason. recovery" format.
+// Writes the reason and recovery of a crex error after the message, in
+// "message: reason. recovery" format.
 func (f *PrettyFormatter) writeCrexError(sb *strings.Builder, errMap map[string]slog.Value) {
 	if reason, ok := errMap[attrReason]; ok && reason.String() != "" {
 		sb.WriteString(": ")
@@ -143,7 +144,9 @@ func (f *PrettyFormatter) writeCrexError(sb *strings.Builder, errMap map[string]
 	}
 }
 
-// Whether a value is a crex error group by looking for the sentinel marker.
+// Returns the attributes of a crex error group, and whether val is one.
+//
+// A group is a crex error when it carries the sentinel marker.
 func asCrexError(val slog.Value) (map[string]slog.Value, bool) {
 	if val.Kind() != slog.KindGroup {
 		return nil, false

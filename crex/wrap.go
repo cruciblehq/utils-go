@@ -11,13 +11,14 @@ import (
 // Creates an error.
 //
 // Use for package-level sentinel values that callers match with errors.Is. The
-// message is fixed; use Newf when the message needs formatting and a sentinel
-// to classify it.
+// message is fixed; use [Newf] when the message needs formatting and a
+// sentinel to classify it.
 func New(text string) error {
 	return errors.New(text)
 }
 
-// Builds a tagged error that carries a formatted message but no cause.
+// Builds an error classified by sentinel that carries a formatted message but
+// no cause.
 //
 // Use when a sentinel needs a message attached and there is no underlying error
 // to chain. The rendered message is "sentinel: message".
@@ -29,7 +30,7 @@ func Newf(sentinel error, format string, args ...any) error {
 //
 // The sentinel classifies the error and the cause carries the detail. The
 // rendered message is "sentinel: cause". Use for technical errors in library
-// code that need classification but no user-facing context.
+// code that need classification but no context for users.
 func Wrap(sentinel, cause error) error {
 	return &wrapped{sentinel: sentinel, cause: cause}
 }
@@ -48,9 +49,10 @@ func Wrapf(sentinel, cause error, format string, args ...any) error {
 // the rendered message.
 //
 // Use when one layer must match more than one sentinel, for example a category
-// and a specific cause, while rendering a single woven message. The tags take
-// part in errors.Is through Unwrap but never appear in the error string. A nil
-// err returns nil; a non-wrapped err is wrapped so the tags can ride along.
+// and a specific cause, while rendering a single message. The tags take part
+// in errors.Is through Unwrap but never appear in the error string. A nil err
+// returns nil; an err that was not made by this package is wrapped so it can
+// carry the tags.
 func Tag(err error, tags ...error) error {
 	if err == nil {
 		return nil
@@ -65,7 +67,7 @@ func Tag(err error, tags ...error) error {
 
 // A single step in an error's structural position path.
 type segment struct {
-	label string // What kind of location this step names, for example "grant scope".
+	label string // What kind of location this step names, for example "section".
 	value string // Which one, the rendered position token.
 	quote bool   // Whether the value renders quoted, for name-like identifiers.
 }
@@ -73,10 +75,11 @@ type segment struct {
 // Records a structural position on err using a 1-based ordinal.
 //
 // Use during propagation to mark where in an ordered collection the failure
-// was found, for example a grant inside a scope. Positions accumulate from the
-// outermost layer inward, forming a path that renders as a breadcrumb in the
-// error string and is kept as separate fields in the structured model. A nil
-// err returns nil; a non-wrapped err is wrapped so the position can ride along.
+// was found, for example an item inside a section. Positions accumulate from
+// the outermost layer inward, forming a path that renders as a breadcrumb in
+// the error string and is kept as separate fields in the structured model. A
+// nil err returns nil; an err that was not made by this package is wrapped so
+// it can carry the position.
 func At(err error, label string, ordinal int) error {
 	return at(err, segment{label: label, value: strconv.Itoa(ordinal)})
 }
@@ -84,14 +87,14 @@ func At(err error, label string, ordinal int) error {
 // Records a named structural position on err, rendered quoted.
 //
 // Use for entities located by identity rather than order, for example a named
-// stage. Behaves like At otherwise: the name renders quoted in the breadcrumb
-// and is kept as a separate field in the structured model.
+// section. Behaves like [At] otherwise: the name renders quoted in the
+// breadcrumb and is kept as a separate field in the structured model.
 func AtName(err error, label, name string) error {
 	return at(err, segment{label: label, value: name, quote: true})
 }
 
-// Prepends seg to err's position path, wrapping a non-wrapped err so the
-// position can ride along. A nil err returns nil.
+// Prepends seg to err's position path. An err that was not made by this
+// package is wrapped so it can carry the position. A nil err returns nil.
 func at(err error, seg segment) error {
 	if err == nil {
 		return nil
@@ -218,7 +221,7 @@ func collectPath(w *wrapped) []segment {
 	return path
 }
 
-// Writes a position path as a breadcrumb like `grant scope 2 > grant 1`.
+// Writes a position path as a breadcrumb like `section 2 > item 1`.
 func writePath(b *strings.Builder, path []segment) {
 	for i, seg := range path {
 		if i > 0 {

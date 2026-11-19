@@ -53,8 +53,9 @@ func Write(w http.ResponseWriter, mt mediatype.MediaType, f codec.Format, status
 // Runs srv until ctx ends, then shuts it down gracefully.
 //
 // The server uses TLS when srv.TLSConfig is set, with the certificates it
-// provides. In-flight requests get up to timeout to finish once ctx ends.
-// Returns the error that stopped the server, or nil after a clean shutdown.
+// provides. Requests still in progress get up to timeout to finish once ctx
+// ends. Returns the error that stopped the server, or nil after a clean
+// shutdown.
 func Serve(ctx context.Context, srv *http.Server, timeout time.Duration) error {
 	errs := make(chan error, 1)
 	go func() {
@@ -71,7 +72,7 @@ func Serve(ctx context.Context, srv *http.Server, timeout time.Duration) error {
 	case <-ctx.Done():
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return err

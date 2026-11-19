@@ -54,9 +54,11 @@ func (f *JSONFormatter) Write(w io.Writer, rctx *RecordContext) error {
 	return err
 }
 
-// Recursively resolves a slog.Value to a Go value. Groups are converted to maps;
-// other values use their native representation.
+// Recursively resolves a slog.Value to a Go value. A [slog.LogValuer] is
+// resolved first. Groups are converted to maps; other values use their native
+// representation.
 func resolveValue(v slog.Value) any {
+	v = v.Resolve()
 	switch v.Kind() {
 	case slog.KindGroup:
 		m := make(map[string]any)

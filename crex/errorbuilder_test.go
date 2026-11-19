@@ -152,7 +152,6 @@ func TestErrorBuilder_Cause(t *testing.T) {
 		t.Errorf("Cause() = %v, want %v", crexErr.Cause(), underlying)
 	}
 
-	// Verify errors.Is works
 	if !errors.Is(err, underlying) {
 		t.Error("errors.Is() = false, want true")
 	}

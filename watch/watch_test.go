@@ -25,12 +25,10 @@ func TestWatchCreate(t *testing.T) {
 	}
 	defer w.Close()
 
-	// Create file
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Wait for event
 	select {
 	case e := <-got:
 		if !e.IsCreate() {
@@ -45,12 +43,10 @@ func TestWatchWrite(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "testwatchwrite.txt")
 
-	// Create file first
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := Watch(dir, func(e *Event) error {
@@ -62,12 +58,10 @@ func TestWatchWrite(t *testing.T) {
 	}
 	defer w.Close()
 
-	// Modify file
 	if err := os.WriteFile(file, []byte("world"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Wait for write event
 	timeout := time.After(time.Second)
 	for {
 		select {
@@ -85,12 +79,10 @@ func TestWatchRemove(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "testwatchremove.txt")
 
-	// Create file first
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := Watch(dir, func(e *Event) error {
@@ -102,7 +94,6 @@ func TestWatchRemove(t *testing.T) {
 	}
 	defer w.Close()
 
-	// Remove file
 	if err := os.Remove(file); err != nil {
 		t.Fatal(err)
 	}
@@ -125,12 +116,10 @@ func TestWatchRename(t *testing.T) {
 	file := filepath.Join(dir, "testwatchrename.txt")
 	renamed := filepath.Join(dir, "renamed.txt")
 
-	// Create file first
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := Watch(dir, func(e *Event) error {
@@ -142,7 +131,6 @@ func TestWatchRename(t *testing.T) {
 	}
 	defer w.Close()
 
-	// Rename file
 	if err := os.Rename(file, renamed); err != nil {
 		t.Fatal(err)
 	}
@@ -182,19 +170,16 @@ func TestWatchCallbackError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Trigger event
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Wait for watcher to stop
 	select {
 	case <-w.Done():
 	case <-time.After(time.Second):
 		t.Fatal("watcher did not stop after callback error")
 	}
 
-	// Callback errors should be stored
 	if w.Err() == nil {
 		t.Errorf("expected non-nil error, got %v", w.Err())
 	}
@@ -255,7 +240,6 @@ func TestWatchRecursiveSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := WatchRecursive(dir, func(e *Event) error {
@@ -267,7 +251,6 @@ func TestWatchRecursiveSuccess(t *testing.T) {
 	}
 	defer w.Close()
 
-	// Create file in subdir
 	file := filepath.Join(subdir, "testwatchrecursive.txt")
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
@@ -287,7 +270,6 @@ func TestWatchAllSuccess(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := WatchAll([]string{dir1, dir2}, func(e *Event) error {
@@ -299,7 +281,6 @@ func TestWatchAllSuccess(t *testing.T) {
 	}
 	defer w.Close()
 
-	// Create file in first dir
 	file1 := filepath.Join(dir1, "test1.txt")
 	if err := os.WriteFile(file1, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
@@ -311,7 +292,6 @@ func TestWatchAllSuccess(t *testing.T) {
 		t.Fatal("timeout waiting for event from dir1")
 	}
 
-	// Create file in second dir
 	file2 := filepath.Join(dir2, "test2.txt")
 	if err := os.WriteFile(file2, []byte("world"), 0644); err != nil {
 		t.Fatal(err)
@@ -339,7 +319,6 @@ func TestWatcherAdd(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := Watch(dir1, func(e *Event) error {
@@ -355,7 +334,6 @@ func TestWatcherAdd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create file in second dir
 	file := filepath.Join(dir2, "testwatchadd.txt")
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
@@ -380,7 +358,6 @@ func TestWatcherAddRecursive(t *testing.T) {
 
 	watchDir := t.TempDir()
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := Watch(watchDir, func(e *Event) error {
@@ -396,7 +373,6 @@ func TestWatcherAddRecursive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create file in subdir
 	file := filepath.Join(subdir, "test.txt")
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
@@ -415,7 +391,6 @@ func TestWatcherAddRecursive(t *testing.T) {
 func TestWatcherRemove(t *testing.T) {
 	dir := t.TempDir()
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := Watch(dir, func(e *Event) error {
@@ -431,7 +406,6 @@ func TestWatcherRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create file - should not trigger event
 	file := filepath.Join(dir, "test.txt")
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
@@ -441,7 +415,6 @@ func TestWatcherRemove(t *testing.T) {
 	case <-got:
 		t.Error("unexpected event after Remove")
 	case <-time.After(100 * time.Millisecond):
-		// Expected - no event
 	}
 }
 
@@ -452,7 +425,6 @@ func TestWatcherRemoveRecursive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := WatchRecursive(dir, func(e *Event) error {
@@ -468,7 +440,6 @@ func TestWatcherRemoveRecursive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create file in subdir - should not trigger event
 	file := filepath.Join(subdir, "test.txt")
 	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
@@ -478,7 +449,6 @@ func TestWatcherRemoveRecursive(t *testing.T) {
 	case <-got:
 		t.Error("unexpected event after RemoveRecursive")
 	case <-time.After(100 * time.Millisecond):
-		// Expected - no event
 	}
 }
 
@@ -486,7 +456,6 @@ func TestWatcherRemoveAll(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()
 
-	// Buffer to avoid blocking the watcher goroutine
 	got := make(chan *Event, 10)
 
 	w, err := WatchAll([]string{dir1, dir2}, func(e *Event) error {
@@ -502,7 +471,6 @@ func TestWatcherRemoveAll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create files - should not trigger events
 	if err := os.WriteFile(filepath.Join(dir1, "test.txt"), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -514,7 +482,6 @@ func TestWatcherRemoveAll(t *testing.T) {
 	case <-got:
 		t.Error("unexpected event after RemoveAll")
 	case <-time.After(100 * time.Millisecond):
-		// Expected - no event
 	}
 }
 
@@ -583,7 +550,6 @@ func TestWatcherAddAllRollback(t *testing.T) {
 		t.Fatal("expected error for nonexistent path")
 	}
 
-	// dir1 and dir2 should not be watched after rollback
 	if err := os.WriteFile(filepath.Join(dir1, "test.txt"), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -595,7 +561,6 @@ func TestWatcherAddAllRollback(t *testing.T) {
 	case e := <-got:
 		t.Errorf("unexpected event after rollback: %s", e.Path())
 	case <-time.After(100 * time.Millisecond):
-		// Expected - no events
 	}
 }
 
@@ -617,7 +582,6 @@ func TestWatcherRemoveAllPartialFailure(t *testing.T) {
 	}
 
 	// The valid path should still have been removed despite the error.
-	// Confirm the error was returned.
 	errMsg := err.Error()
 	if errMsg == "" {
 		t.Error("expected non-empty error message")

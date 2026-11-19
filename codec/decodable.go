@@ -26,17 +26,17 @@ type Decodable interface {
 	// any nested [Codec.Field] or [Codec.FromMap] calls. The raw value is the
 	// parsed representation from the source format, typically a map[string]any
 	// but possibly a string or other scalar. Returning an error aborts the
-	// outer [Codec.Decode] or [Codec.FromMap] call.
+	// outer [Codec.Decode], [Codec.FromMap], or [Codec.Field] call.
 	Decode(c *Codec, raw any) error
 }
 
 // Populates dst from a map.
 //
-// Field names are matched by the codec's struct tag. Type coercions such as
-// string-to-int are applied automatically. Fields with a `default:"X"` tag
-// receive that default when absent from the input. At each node in
-// the type tree, if the target implements [Decodable], its Decode method
-// is called with the raw map.
+// Field names are matched by the codec's struct tag. Type coercions, such as
+// a string into an int, are applied automatically. Fields with a `default:"X"`
+// tag receive that default when absent from the input. At each node in the type
+// tree, if the target implements [Decodable], its Decode method is called with
+// the raw value.
 func (c *Codec) FromMap(src map[string]any, dst any) error {
 	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		TagName:          c.tag,
@@ -58,7 +58,7 @@ func (c *Codec) FromMap(src map[string]any, dst any) error {
 //
 // The data is first parsed into a map, then applied to v via [Codec.FromMap].
 // If v (or any nested field) implements [Decodable], its Decode method is
-// called with the raw parsed map at that point in the tree. JSON carries
+// called with the raw parsed value at that point in the tree. JSON carries
 // []byte values as base64 strings, so JSON input decodes them back to bytes.
 func (c *Codec) Decode(data []byte, v any, f Format) error {
 	m, err := decodeMap(data, f)
@@ -80,7 +80,7 @@ func (c *Codec) forFormat(f Format) *Codec {
 
 // Decodes a single struct field from a map.
 //
-// Looks up the field's codec tag key in src. If present, the raw value is
+// Looks up the key from the field's struct tag in src. If present, the raw value is
 // decoded into the field with type coercion and hook dispatch. If absent,
 // the tag-declared default (if any) is applied. Returns a programming error
 // if fieldName does not exist on v's type or v is not a pointer to a struct.

@@ -11,9 +11,10 @@ import (
 )
 
 // Sentinel key used to identify crex errors in slog output.
-const crexErrorMarker = "!github.com/cruciblehq/crex.Error"
+const crexErrorMarker = "!github.com/cruciblehq/utils-go/crex.Error"
 
-// Attribute keys of a logged crex error, shared by the error types and the formatters.
+// Attribute keys of a logged crex error, shared by the error types and the
+// formatters.
 const (
 	attrClass       = "class"       // Error class.
 	attrDescription = "description" // What failed.
@@ -24,18 +25,18 @@ const (
 
 // Represents an error with rich context.
 //
-// crex errors are composed of a description (what failed), a reason (why it
-// failed), and an optional recovery (how to fix it or system compromise). The
-// recovery either provides a suggestion to the user to recover from the error
-// or indicates how the system has compromised itself to continue operating.
+// Crex errors are composed of a description (what failed), a reason (why it
+// failed), and an optional recovery. The recovery either suggests how the user
+// can recover from the error or tells how the system worked around it to keep
+// running.
 //
-// Errors also have a class (user, system, programming/bug) that indicates the
-// nature of the error. User errors are caused by incorrect user input or actions,
-// and can typically be resolved by the user. System errors are caused by
-// external system failures (e.g., network issues, file system errors) and may
-// require user intervention or retries. Programming/bug errors indicate flaws
-// in the code itself and should be reported to the developers. The CLI tools
-// may suggest reporting programming/bug errors to the development team.
+// Errors also have a class (user, system, programming) that indicates the
+// nature of the error. User errors are caused by incorrect user input or
+// actions, and can typically be resolved by the user. System errors are caused
+// by external system failures (e.g., network issues, file system errors) and
+// may require user intervention or retries. Programming errors indicate flaws
+// in the code itself and should be reported to the developers. A program may
+// suggest that users report programming errors to its developers.
 //
 // Errors can carry additional details as key-value pairs for more context,
 // wrap an underlying cause error, and include a context.

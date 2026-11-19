@@ -14,10 +14,10 @@ const retryInterval = 100 * time.Millisecond
 
 // Acquires an exclusive file lock on f.
 //
-// Blocks until the lock is available or ctx is cancelled. Uses a non-blocking
-// flock call in a retry loop so the operation honours context deadlines and
-// cancellation without holding the OS scheduler. Returns an error if the lock
-// cannot be acquired or ctx is cancelled.
+// Blocks until the lock is available or ctx is cancelled. Tries a flock call
+// that does not block in a loop, so the operation honours context deadlines
+// and cancellation instead of waiting in the kernel. Returns an error if the
+// lock cannot be acquired or ctx is cancelled.
 func LockWithContext(ctx context.Context, f *os.File) error {
 	for {
 		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
@@ -37,7 +37,8 @@ func LockWithContext(ctx context.Context, f *os.File) error {
 
 // Acquires an exclusive file lock on f.
 //
-// Blocks until the lock is available. Returns an error if it cannot be acquired.
+// Blocks until the lock is available. Returns an error if it cannot be
+// acquired.
 func Lock(f *os.File) error {
 	return LockWithContext(context.Background(), f)
 }

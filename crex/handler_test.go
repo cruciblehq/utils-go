@@ -17,7 +17,6 @@ func TestNewHandler(t *testing.T) {
 		t.Fatal("NewHandler() returned nil")
 	}
 
-	// Verify default level is Info
 	if h.Level() != slog.LevelInfo {
 		t.Errorf("Level() = %v, want %v", h.Level(), slog.LevelInfo)
 	}
@@ -125,7 +124,6 @@ func TestHandler_Handle(t *testing.T) {
 		t.Fatalf("Handle() error = %v", err)
 	}
 
-	// With formatter set, should write immediately
 	if buf.Len() == 0 {
 		t.Error("Handle() did not write to buffer")
 	}
@@ -147,12 +145,10 @@ func TestHandler_HandleBuffering(t *testing.T) {
 		t.Fatalf("Handle() error = %v", err)
 	}
 
-	// Without formatter, should buffer (no output yet)
 	if buf.Len() > 0 {
 		t.Error("Handle() wrote to buffer before formatter was set")
 	}
 
-	// Now set formatter and flush
 	h.SetFormatter(NewPrettyFormatter(false))
 	flushed, err := h.Flush()
 	if err != nil {
@@ -178,7 +174,6 @@ func TestHandler_FlushMultiple(t *testing.T) {
 	h := NewHandler().SetStream(&buf)
 	// No formatter - buffer records
 
-	// Handle multiple records
 	for i := 0; i < 3; i++ {
 		record := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
 		if err := h.Handle(context.Background(), record); err != nil {
@@ -186,7 +181,6 @@ func TestHandler_FlushMultiple(t *testing.T) {
 		}
 	}
 
-	// Set formatter and flush
 	h.SetFormatter(NewPrettyFormatter(false))
 	flushed, err := h.Flush()
 	if err != nil {
@@ -210,7 +204,6 @@ func TestHandler_FlushEmpty(t *testing.T) {
 		SetStream(&buf).
 		SetFormatter(NewPrettyFormatter(false))
 
-	// Flush without handling any records
 	flushed, err := h.Flush()
 	if err != nil {
 		t.Fatalf("Flush() error = %v", err)
@@ -235,7 +228,6 @@ func TestHandler_FlushNoFormatter(t *testing.T) {
 		t.Fatalf("Handle() error = %v", err)
 	}
 
-	// Flush without formatter should return false
 	flushed, err := h.Flush()
 	if err != nil {
 		t.Fatalf("Flush() error = %v", err)
@@ -266,12 +258,10 @@ func TestHandler_WithAttrs(t *testing.T) {
 
 	h2 := h.WithAttrs(attrs)
 
-	// Should return a new handler
 	if h2 == h {
 		t.Error("WithAttrs() returned the same handler instance")
 	}
 
-	// Test that attributes are included in output
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
 	if err := h2.Handle(context.Background(), record); err != nil {
 		t.Fatalf("Handle() error = %v", err)
@@ -294,12 +284,10 @@ func TestHandler_WithGroup(t *testing.T) {
 
 	h2 := h.WithGroup("group1")
 
-	// Should return a new handler
 	if h2 == h {
 		t.Error("WithGroup() returned the same handler instance")
 	}
 
-	// Verify group is preserved in output
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
 	if err := h2.Handle(context.Background(), record); err != nil {
 		t.Fatalf("Handle() error = %v", err)
@@ -335,7 +323,6 @@ func TestHandler_WithGroup_Nested(t *testing.T) {
 	h2 := h.WithGroup("group1")
 	h3 := h2.WithGroup("group2")
 
-	// Verify nested groups in output
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
 	if err := h3.Handle(context.Background(), record); err != nil {
 		t.Fatalf("Handle() error = %v", err)
@@ -370,7 +357,6 @@ func TestHandler_ConcurrentHandle(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Verify all records were handled
 	output := buf.String()
 	count := strings.Count(output, "test")
 	if count != 10 {
@@ -387,7 +373,6 @@ func TestHandler_ConcurrentFlush(t *testing.T) {
 		t.Fatalf("Handle() error = %v", err)
 	}
 
-	// Set formatter
 	h.SetFormatter(NewPrettyFormatter(false))
 
 	// Multiple concurrent flushes should be safe
@@ -401,7 +386,6 @@ func TestHandler_ConcurrentFlush(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Should have output from at least one flush
 	if buf.Len() == 0 {
 		t.Error("no output after concurrent flushes")
 	}
@@ -413,7 +397,6 @@ func TestHandler_LevelFiltering(t *testing.T) {
 		SetStream(&buf).
 		SetFormatter(NewPrettyFormatter(false))
 
-	// Debug and Info should not be enabled
 	record1 := slog.NewRecord(time.Now(), slog.LevelDebug, "debug", 0)
 	if h.Enabled(context.Background(), record1.Level) {
 		t.Error("Debug level is enabled when level is Warn")
@@ -424,9 +407,7 @@ func TestHandler_LevelFiltering(t *testing.T) {
 	if h.Enabled(context.Background(), record2.Level) {
 		t.Error("Info level is enabled when level is Warn")
 	}
-	// Don't call Handle for disabled levels
 
-	// Warn should be enabled and written
 	record3 := slog.NewRecord(time.Now(), slog.LevelWarn, "warn", 0)
 	if !h.Enabled(context.Background(), record3.Level) {
 		t.Error("Warn level is not enabled when level is Warn")

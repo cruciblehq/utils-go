@@ -26,9 +26,9 @@ const (
 
 const (
 	extTar  = ".tar"     // File extension for plain tar archives.
-	extGzip = ".tar.gz"  // File extension for Gzip-compressed tar archives.
-	extTgz  = ".tgz"     // Alternate file extension for Gzip-compressed tar archives.
-	extZstd = ".tar.zst" // File extension for Zstandard-compressed tar archives.
+	extGzip = ".tar.gz"  // File extension for tar archives compressed with Gzip.
+	extTgz  = ".tgz"     // Short file extension for tar archives compressed with Gzip.
+	extZstd = ".tar.zst" // File extension for tar archives compressed with Zstandard.
 )
 
 // Leading bytes of compressed streams.
@@ -89,7 +89,7 @@ func DetectFormat(r io.Reader) (Format, io.Reader, error) {
 	}
 }
 
-// Returns a writer that compresses what is written to it into w.
+// Returns a writer that compresses what is written to it into w in format f.
 //
 // The caller must close the returned writer to flush the compressed data. It
 // does not close w.
@@ -108,7 +108,7 @@ func Compress(w io.Writer, f Format) (io.WriteCloser, error) {
 	}
 }
 
-// Returns a reader that decompresses r.
+// Returns a reader that decompresses r from format f.
 //
 // The caller must close the returned reader to release its resources. It does
 // not close r.

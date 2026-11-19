@@ -79,8 +79,8 @@ func LeafTemplate(name string, v Validity, usage x509.ExtKeyUsage, dnsNames ...s
 // Signs tmpl for pub with signer and returns the parsed certificate.
 //
 // parent is the issuing certificate. When parent is nil, the certificate is
-// signed by itself and signer must hold the key for pub. A random serial
-// number is set when tmpl has none.
+// signed by itself and signer must hold the key for pub. tmpl gets a random
+// serial number when it has none.
 func Sign(tmpl, parent *x509.Certificate, pub crypto.PublicKey, signer crypto.Signer) (*x509.Certificate, error) {
 	if tmpl.SerialNumber == nil {
 		serial, err := SerialNumber()

@@ -13,7 +13,6 @@ func TestLockExclusive(t *testing.T) {
 	dir := t.TempDir()
 	lockPath := filepath.Join(dir, "test.lock")
 
-	// Acquire the lock on a first file descriptor.
 	f1, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +35,6 @@ func TestLockExclusive(t *testing.T) {
 		t.Fatal("expected second lock to fail while first is held")
 	}
 
-	// Release the first lock and verify the second can now succeed.
 	Unlock(f1)
 
 	if err := Lock(f2); err != nil {

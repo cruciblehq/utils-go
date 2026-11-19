@@ -10,7 +10,7 @@ type Callback func(*Event) error
 
 // Represents a file system event.
 type Event struct {
-	event fsnotify.Event
+	event fsnotify.Event // Underlying fsnotify event.
 }
 
 // Returns the path of the file or directory that triggered the event.

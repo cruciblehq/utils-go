@@ -108,7 +108,6 @@ func TestError_Details(t *testing.T) {
 			t.Errorf("Details() length = %d, want 2", len(details))
 		}
 
-		// Verify it's a copy
 		details["key3"] = "new value"
 		if _, ok := err.details["key3"]; ok {
 			t.Error("Details() returned original map, want copy")
@@ -175,7 +174,6 @@ func TestError_Unwrap(t *testing.T) {
 		t.Errorf("Unwrap() = %v, want %v", got, cause)
 	}
 
-	// Test with errors.Is
 	if !errors.Is(err, cause) {
 		t.Error("errors.Is() = false, want true")
 	}
@@ -274,7 +272,6 @@ func TestError_LogValue(t *testing.T) {
 		t.Errorf("LogValue().Kind() = %v, want KindGroup", val.Kind())
 	}
 
-	// Verify required attributes
 	attrMap := make(map[string]slog.Attr)
 	for _, attr := range val.Group() {
 		attrMap[attr.Key] = attr

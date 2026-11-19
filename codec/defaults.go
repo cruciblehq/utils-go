@@ -8,12 +8,12 @@ import (
 	"github.com/cruciblehq/utils-go/crex"
 )
 
-// Applies tag-declared defaults to unset fields in a struct.
+// Applies the defaults declared in struct tags to unset fields in a struct.
 //
-// Walks v recursively through struct and pointer-to-struct fields. A default
-// is applied only when the field's key is absent from the source map src.
-// Fields that were explicitly provided in the input (even as zero) are never
-// overwritten.
+// Walks v recursively through fields that are structs or pointers to structs.
+// A default is applied only when the field's key is absent from the source map
+// src. Fields that were explicitly provided in the input (even as zero) are
+// never overwritten.
 func (c *Codec) applyDefaults(v reflect.Value, src map[string]any) error {
 	v = deref(v)
 	if v.Kind() != reflect.Struct {
@@ -30,9 +30,10 @@ func (c *Codec) applyDefaults(v reflect.Value, src map[string]any) error {
 
 // Applies the default for a single struct field.
 //
-// If the field is a struct or pointer-to-struct it recurses via [applyDefaults]
-// with a nested map. Otherwise the default is applied only when the field's key
-// is absent from src. Values provided explicitly are never overwritten.
+// If the field is a struct or a non-nil pointer to a struct, it recurses via
+// [Codec.applyDefaults] with a nested map. Otherwise the default is applied
+// only when the field's key is absent from src. Values provided explicitly are
+// never overwritten.
 func (c *Codec) applyFieldDefault(field reflect.Value, sf reflect.StructField, src map[string]any) error {
 	rawTag := sf.Tag.Get(c.tag)
 	name, _, _ := strings.Cut(rawTag, ",")
@@ -92,7 +93,7 @@ func shouldRecurseInto(field reflect.Value) bool {
 // Dereferences a pointer Value to its element.
 //
 // Returns the element for non-nil pointers, the zero [reflect.Value]
-// for nil pointers, and the value unchanged for non-pointer kinds.
+// for nil pointers, and the value unchanged for other kinds.
 func deref(v reflect.Value) reflect.Value {
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {

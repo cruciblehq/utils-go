@@ -66,7 +66,6 @@ func TestPrettyFormatter_Write_WithColor(t *testing.T) {
 	}
 
 	got := buf.String()
-	// Should contain ANSI color codes
 	if !strings.Contains(got, "\033[") {
 		t.Error("output missing ANSI color codes")
 	}
@@ -111,7 +110,6 @@ func TestPrettyFormatter_Write_WithAttributes_NonVerbose(t *testing.T) {
 	}
 
 	got := buf.String()
-	// Non-verbose should not show regular attributes
 	if strings.Contains(got, "key=value") {
 		t.Errorf("non-verbose output contains attribute: %q", got)
 	}
@@ -132,7 +130,6 @@ func TestPrettyFormatter_Write_WithAttributes_Verbose(t *testing.T) {
 	}
 
 	got := buf.String()
-	// Verbose should show attributes
 	if !strings.Contains(got, "key=value") {
 		t.Errorf("verbose output missing attribute: %q", got)
 	}
@@ -142,7 +139,6 @@ func TestPrettyFormatter_Write_CrexError(t *testing.T) {
 	f := NewPrettyFormatter(false)
 	var buf bytes.Buffer
 
-	// Create a crex error and add its LogValue directly
 	crexErr := UserError("operation failed", "invalid input").Err().(*Error)
 	record := slog.NewRecord(time.Now(), slog.LevelError, "task failed", 0)
 	record.AddAttrs(slog.Any("error", crexErr))
@@ -207,7 +203,6 @@ func TestPrettyFormatter_Write_CrexError_Verbose(t *testing.T) {
 	}
 
 	got := buf.String()
-	// Verbose should include error details
 	if !strings.Contains(got, "class=system") {
 		t.Errorf("verbose output missing class: %q", got)
 	}

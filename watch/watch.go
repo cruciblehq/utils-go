@@ -14,15 +14,15 @@ import (
 //
 // Delivers create, write, remove, and rename events to a callback. Supports
 // adding and removing paths dynamically, including recursive directory
-// watching. The watcher runs until Close is called, the callback returns an
-// error, or the underlying watcher fails.
+// watching. The watcher runs until [Watcher.Close] is called, the callback
+// returns an error, or the underlying watcher fails.
 type Watcher struct {
-	watcher   *fsnotify.Watcher // Underlying fsnotify watcher
-	stop      chan struct{}     // Channel to signal stopping
-	stopped   chan struct{}     // Channel closed when stopped
-	err       error             // Error that caused stop, if any
-	errMu     sync.Mutex        // Mutex to protect err
-	closeOnce sync.Once         // Ensures Close logic runs only once
+	watcher   *fsnotify.Watcher // Underlying fsnotify watcher.
+	stop      chan struct{}     // Closed to signal the event loop to stop.
+	stopped   chan struct{}     // Closed when the event loop has stopped.
+	err       error             // Error that caused the stop, if any.
+	errMu     sync.Mutex        // Guards err.
+	closeOnce sync.Once         // Ensures stop is closed only once.
 }
 
 // Stops the watcher and releases resources.
@@ -84,8 +84,8 @@ func Watch(path string, callback Callback) (*Watcher, error) {
 // Monitors a path and all subdirectories for file system events.
 //
 // Subdirectories are collected at startup. Directories created after the watch
-// starts are not automatically watched; use Add or AddRecursive in the callback
-// to watch them.
+// starts are not automatically watched; use [Watcher.Add] or
+// [Watcher.AddRecursive] in the callback to watch them.
 func WatchRecursive(path string, callback Callback) (*Watcher, error) {
 
 	dirs, err := collectDirs(path)
@@ -99,9 +99,9 @@ func WatchRecursive(path string, callback Callback) (*Watcher, error) {
 // Monitors multiple paths for file system events.
 //
 // Starts watching all specified paths and delivers events to the callback. An
-// event loop is started in a separate goroutine, which runs until Close is
-// called or an error occurs. If any path cannot be watched, no paths are
-// watched and the error is returned.
+// event loop is started in a separate goroutine, which runs until
+// [Watcher.Close] is called or an error occurs. If any path cannot be watched,
+// no paths are watched and the error is returned.
 func WatchAll(paths []string, callback Callback) (*Watcher, error) {
 
 	fsw, err := fsnotify.NewWatcher()

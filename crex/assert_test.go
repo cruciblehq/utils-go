@@ -28,7 +28,6 @@ func TestAssertf_True(t *testing.T) {
 // Note: The following tests only work when compiled with -tags=debug
 // In release builds, assertions are no-ops and will not panic
 
-// Verifies that r is a string panic value containing every substring in want.
 func checkAssertPanic(t *testing.T, r any, want ...string) {
 	t.Helper()
 	msg, ok := r.(string)

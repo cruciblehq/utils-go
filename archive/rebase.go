@@ -19,7 +19,7 @@ import (
 // When from is empty, every entry is moved under to. Other entries are copied
 // unchanged. Hard link targets move the same way as names, so links stay
 // valid. The entry for the archive root is dropped. All other header fields
-// are kept.
+// are kept, except the tar format, which the writer picks again.
 func Rebase(w io.Writer, r io.Reader, from, to string) error {
 	from, to = cleanName(from), cleanName(to)
 

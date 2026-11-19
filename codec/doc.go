@@ -1,9 +1,9 @@
 // Package codec provides format-neutral encoding and decoding.
 //
-// All types in the project carry a single codec:"name" struct tag. The codec
-// package converts between Go values and byte representations in JSON or YAML
-// using mapstructure as the struct-to-map bridge and standard library encoders
-// for the final byte format.
+// Struct fields are mapped by a struct tag, "codec" by default ([New] binds
+// another one). The codec package converts between Go values and byte
+// representations in JSON or YAML using mapstructure as the struct-to-map
+// bridge and standard library encoders for the final byte format.
 //
 // [Encode] serializes a Go value to bytes. If the value implements [Encodable],
 // its Encode method produces the intermediate representation; otherwise
@@ -14,7 +14,9 @@
 //
 // [Decode] parses bytes (JSON or YAML) into a map, then populates a Go struct
 // with [Codec.FromMap], which walks the type tree, applying weak type coercion
-// (e.g. string-to-int) and tag-declared defaults for absent fields.
+// (for example, a string into an int) and tag-declared defaults for absent
+// fields. JSON carries []byte values as base64 strings, so decoding JSON turns
+// them back into bytes.
 //
 //	err := codec.Decode(data, &v, codec.YAML)
 //

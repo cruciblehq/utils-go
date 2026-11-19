@@ -17,8 +17,9 @@
 // links, and reject any entry that would land outside the destination with
 // [ErrInvalidPath].
 //
-// [Rebase] copies a tar stream while moving its entries to another directory,
-// which is useful to place an archive at a different path before applying it.
+// [Rebase] copies an uncompressed tar stream while moving its entries to
+// another directory, which is useful to place an archive at a different path
+// before applying it.
 //
 // Writing a directory to a file:
 //

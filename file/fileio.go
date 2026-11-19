@@ -79,8 +79,9 @@ func IsInside(path, root string) bool {
 
 // Lists the names of immediate subdirectories of dir.
 //
-// Regular files are ignored. The returned slice is nil when dir contains no
-// subdirectories, and the names are in directory-read order (not sorted).
+// Entries that are not directories, including symlinks to directories, are
+// ignored. The returned slice is nil when dir contains no subdirectories, and
+// the names are in the order the directory was read (not sorted).
 func ListSubdirs(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
