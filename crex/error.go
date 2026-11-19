@@ -1,7 +1,6 @@
 package crex
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -38,16 +37,15 @@ const (
 // in the code itself and should be reported to the developers. A program may
 // suggest that users report programming errors to its developers.
 //
-// Errors can carry additional details as key-value pairs for more context,
-// wrap an underlying cause error, and include a context.
+// Errors can carry additional details as key-value pairs,
+// and can wrap an underlying cause error.
 type Error struct {
-	description string          // What failed.
-	reason      string          // Why it failed.
-	recovery    string          // Recovery suggestion or compromise, if any.
-	cause       error           // Underlying cause error, if any.
-	class       ErrorClass      // Classification of the error.
-	details     map[string]any  // Additional key-value details about the error.
-	context     context.Context // Context associated with the error, if any.
+	description string         // What failed.
+	reason      string         // Why it failed.
+	recovery    string         // Recovery suggestion or compromise, if any.
+	cause       error          // Underlying cause error, if any.
+	class       ErrorClass     // Classification of the error.
+	details     map[string]any // Additional key-value details about the error.
 }
 
 // Returns the error description.
@@ -86,11 +84,6 @@ func ClassOf(err error) (ErrorClass, bool) {
 		return e.class, true
 	}
 	return ErrorClassUnknown, false
-}
-
-// Returns the context associated with the error, or nil if none was set.
-func (r *Error) Context() context.Context {
-	return r.context
 }
 
 // Returns the value of a specific detail by key.

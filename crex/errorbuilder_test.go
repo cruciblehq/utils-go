@@ -1,7 +1,6 @@
 package crex
 
 import (
-	"context"
 	"errors"
 	"testing"
 )
@@ -68,7 +67,7 @@ func TestProgrammingErrorf(t *testing.T) {
 
 func TestNewError_EmptyDescription_Panics(t *testing.T) {
 	defer func() {
-		if r := recover(); r == nil {
+		if recover() == nil {
 			t.Error("newError() with empty description did not panic")
 		}
 	}()
@@ -78,7 +77,7 @@ func TestNewError_EmptyDescription_Panics(t *testing.T) {
 
 func TestNewError_EmptyReason_Panics(t *testing.T) {
 	defer func() {
-		if r := recover(); r == nil {
+		if recover() == nil {
 			t.Error("newError() with empty reason did not panic")
 		}
 	}()
@@ -88,7 +87,7 @@ func TestNewError_EmptyReason_Panics(t *testing.T) {
 
 func TestNewError_WhitespaceOnly_Panics(t *testing.T) {
 	defer func() {
-		if r := recover(); r == nil {
+		if recover() == nil {
 			t.Error("newError() with whitespace-only description did not panic")
 		}
 	}()
@@ -175,28 +174,13 @@ func TestErrorBuilder_Detail(t *testing.T) {
 	}
 }
 
-func TestErrorBuilder_Context(t *testing.T) {
-	ctx := context.WithValue(context.Background(), "key", "value")
-	err := UserError("test", "reason").
-		Context(ctx).
-		Err()
-	crexErr := err.(*Error)
-
-	if crexErr.Context() != ctx {
-		t.Errorf("Context() = %v, want %v", crexErr.Context(), ctx)
-	}
-}
-
 func TestErrorBuilder_Chaining(t *testing.T) {
 	underlying := errors.New("underlying")
-	ctx := context.Background()
-
 	err := UserError("operation failed", "invalid input").
 		Recovery("Use valid input").
 		Cause(underlying).
 		Detail("field", "username").
 		Detail("value", "abc").
-		Context(ctx).
 		Err()
 
 	crexErr := err.(*Error)
@@ -212,9 +196,6 @@ func TestErrorBuilder_Chaining(t *testing.T) {
 	}
 	if crexErr.Cause() != underlying {
 		t.Errorf("Cause() = %v, want %v", crexErr.Cause(), underlying)
-	}
-	if crexErr.Context() != ctx {
-		t.Errorf("Context() = %v, want %v", crexErr.Context(), ctx)
 	}
 
 	field, ok := crexErr.Detail("field")

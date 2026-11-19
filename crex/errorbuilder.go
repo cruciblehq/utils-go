@@ -1,7 +1,6 @@
 package crex
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,11 +16,10 @@ import (
 // [UserErrorf]).
 //
 // [ErrorBuilder] allows setting various attributes of an error: description,
-// reason, recovery, cause, additional details, and context. Description and
-// reason are required and must be provided when creating the builder. Recovery,
-// cause, details, and context can be set using their respective setter methods:
-// [ErrorBuilder.Recovery], [ErrorBuilder.Cause], [ErrorBuilder.Detail], and
-// [ErrorBuilder.Context].
+// reason, recovery, cause, and additional details. Description and reason
+// are required and must be provided when creating the builder. Recovery,
+// cause, and details can be set using their respective setter methods:
+// [ErrorBuilder.Recovery], [ErrorBuilder.Cause], and [ErrorBuilder.Detail].
 //
 // Once all desired attributes are set, [ErrorBuilder.Err] can be called to
 // retrieve the constructed [Error] instance.
@@ -35,7 +33,7 @@ func UserError(description, reason string) *ErrorBuilder {
 }
 
 // Creates a user error with the given description and formatted reason.
-func UserErrorf(description string, reasonFormat string, args ...any) *ErrorBuilder {
+func UserErrorf(description, reasonFormat string, args ...any) *ErrorBuilder {
 	return UserError(description, fmt.Sprintf(reasonFormat, args...))
 }
 
@@ -45,7 +43,7 @@ func SystemError(description, reason string) *ErrorBuilder {
 }
 
 // Creates a system error with the given description and formatted reason.
-func SystemErrorf(description string, reasonFormat string, args ...any) *ErrorBuilder {
+func SystemErrorf(description, reasonFormat string, args ...any) *ErrorBuilder {
 	return SystemError(description, fmt.Sprintf(reasonFormat, args...))
 }
 
@@ -55,7 +53,7 @@ func ProgrammingError(description, reason string) *ErrorBuilder {
 }
 
 // Creates a programming error with the given description and formatted reason.
-func ProgrammingErrorf(description string, reasonFormat string, args ...any) *ErrorBuilder {
+func ProgrammingErrorf(description, reasonFormat string, args ...any) *ErrorBuilder {
 	return ProgrammingError(description, fmt.Sprintf(reasonFormat, args...))
 }
 
@@ -106,12 +104,6 @@ func (b *ErrorBuilder) Detail(key string, value any) *ErrorBuilder {
 		b.err.details = make(map[string]any)
 	}
 	b.err.details[key] = value
-	return b
-}
-
-// Sets the context associated with the error.
-func (b *ErrorBuilder) Context(ctx context.Context) *ErrorBuilder {
-	b.err.context = ctx
 	return b
 }
 

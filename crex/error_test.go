@@ -1,7 +1,6 @@
 package crex
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -42,23 +41,6 @@ func TestError_Class(t *testing.T) {
 	if got := err.Class(); got != ErrorClassUser {
 		t.Errorf("Class() = %q, want %q", got, ErrorClassUser)
 	}
-}
-
-func TestError_Context(t *testing.T) {
-	t.Run("with context", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), "key", "value")
-		err := &Error{context: ctx}
-		if got := err.Context(); got != ctx {
-			t.Errorf("Context() = %v, want %v", got, ctx)
-		}
-	})
-
-	t.Run("without context", func(t *testing.T) {
-		err := &Error{}
-		if got := err.Context(); got != nil {
-			t.Errorf("Context() = %v, want nil", got)
-		}
-	})
 }
 
 func TestError_Detail(t *testing.T) {
