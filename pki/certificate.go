@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
-	"os"
 	"time"
 )
 
@@ -114,13 +113,4 @@ func SignRevocationList(number int64, v Validity, revoked []x509.RevocationListE
 		return nil, err
 	}
 	return x509.ParseRevocationList(der)
-}
-
-// Reads a DER certificate from path.
-func ReadCertificate(path string) (*x509.Certificate, error) {
-	der, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return x509.ParseCertificate(der)
 }

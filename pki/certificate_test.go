@@ -4,9 +4,6 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
-	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -143,38 +140,5 @@ func TestSignRevocationList(t *testing.T) {
 	}
 	if len(crl.RevokedCertificateEntries) != 1 {
 		t.Errorf("len(RevokedCertificateEntries) = %d, want 1", len(crl.RevokedCertificateEntries))
-	}
-}
-
-func TestReadCertificate(t *testing.T) {
-	root, _ := newAuthority(t)
-	path := filepath.Join(t.TempDir(), "root.crt")
-	if err := os.WriteFile(path, root.Raw, 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := ReadCertificate(path)
-	if err != nil {
-		t.Fatalf("ReadCertificate() = %v, want nil", err)
-	}
-	if !got.Equal(root) {
-		t.Error("ReadCertificate() differs from the written certificate")
-	}
-}
-
-func TestReadCertificateMissing(t *testing.T) {
-	if _, err := ReadCertificate(filepath.Join(t.TempDir(), "missing.crt")); !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("ReadCertificate() = %v, want %v", err, os.ErrNotExist)
-	}
-}
-
-func TestReadCertificateInvalid(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "bad.crt")
-	if err := os.WriteFile(path, []byte("not a certificate"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := ReadCertificate(path); err == nil {
-		t.Error("ReadCertificate() of garbage = nil, want an error")
 	}
 }
